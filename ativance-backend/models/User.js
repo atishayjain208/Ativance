@@ -45,6 +45,11 @@ const UserSchema = new mongoose.Schema(
       type: mongoose.Schema.Types.Mixed,
       default: {},
     },
+    resume: {
+      filePath:   { type: String, default: '' },
+      filename:   { type: String, default: '' },
+      uploadedAt: { type: Date },
+    },
     githubStats: {
       type: mongoose.Schema.Types.Mixed,
       default: {},

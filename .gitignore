@@ -6,3 +6,7 @@ node_modules/
 .env.*
 **/.env
 **/.env.*
+
+# Uploaded user files — keep the folder but not its contents
+ativance-backend/uploads/*
+!ativance-backend/uploads/.gitkeep
