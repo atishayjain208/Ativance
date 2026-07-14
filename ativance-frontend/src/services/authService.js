@@ -41,3 +41,24 @@ export const updateProfile = async (fields) => {
   const { data } = await API.put('/api/user/profile', fields);
   return data; // { success, message, user }
 };
+
+// ── Resume ────────────────────────────────────────────────────────────────────
+
+/**
+ * Upload a PDF resume file.
+ * @param {File} file  The PDF File object from the input element.
+ * @param {function} onProgress  Optional (loaded, total) callback for progress.
+ */
+export const uploadResume = async (file, onProgress) => {
+  const formData = new FormData();
+  formData.append('resume', file);
+
+  const { data } = await API.post('/api/resume/upload', formData, {
+    // Let the browser set Content-Type + boundary automatically
+    headers: { 'Content-Type': 'multipart/form-data' },
+    onUploadProgress: onProgress
+      ? (e) => onProgress(e.loaded, e.total)
+      : undefined,
+  });
+  return data; // { success, message, warning?, resume, textExtracted }
+};
