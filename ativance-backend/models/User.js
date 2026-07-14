@@ -49,6 +49,12 @@ const UserSchema = new mongoose.Schema(
       filePath:   { type: String, default: '' },
       filename:   { type: String, default: '' },
       uploadedAt: { type: Date },
+      textStatus: { type: String, enum: ['pending', 'extracted', 'failed'], default: 'pending' },
+    },
+    // Raw text extracted from the uploaded PDF — used for AI analysis
+    resumeText: {
+      type: String,
+      default: '',
     },
     githubStats: {
       type: mongoose.Schema.Types.Mixed,
