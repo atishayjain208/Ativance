@@ -14,22 +14,30 @@ API.interceptors.request.use((config) => {
   return config;
 });
 
-/**
- * signup({ name, email, password })
- * Returns { token, user } on success.
- * Throws an error with a .message string on failure.
- */
+// ── Auth ──────────────────────────────────────────────────────────────────────
+
+/** signup({ name, email, password }) → { token, user } */
 export const signup = async ({ name, email, password }) => {
   const { data } = await API.post('/api/auth/signup', { name, email, password });
-  return data; // { success, message, token, user }
+  return data;
 };
 
-/**
- * login({ email, password })
- * Returns { token, user } on success.
- * Throws an error with a .message string on failure.
- */
+/** login({ email, password }) → { token, user } */
 export const login = async ({ email, password }) => {
   const { data } = await API.post('/api/auth/login', { email, password });
-  return data; // { success, message, token, user }
+  return data;
+};
+
+// ── User profile ──────────────────────────────────────────────────────────────
+
+/** Fetch the logged-in user's full profile */
+export const getProfile = async () => {
+  const { data } = await API.get('/api/user/profile');
+  return data; // { success, user }
+};
+
+/** Update editable profile fields */
+export const updateProfile = async (fields) => {
+  const { data } = await API.put('/api/user/profile', fields);
+  return data; // { success, message, user }
 };

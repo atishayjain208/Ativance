@@ -9,6 +9,7 @@ import DSA from './pages/DSA';
 import Mentor from './pages/Mentor';
 import Roadmap from './pages/Roadmap';
 import Interview from './pages/Interview';
+import Profile from './pages/Profile';
 
 // ── Private route guard ───────────────────────────────────────────────────────
 function PrivateRoute({ children }) {
@@ -41,6 +42,7 @@ function App() {
         <Route path="/mentor"     element={<Protected><Mentor /></Protected>} />
         <Route path="/roadmap"    element={<Protected><Roadmap /></Protected>} />
         <Route path="/interview"  element={<Protected><Interview /></Protected>} />
+        <Route path="/profile"    element={<Protected><Profile /></Protected>} />
 
         {/* Fallback */}
         <Route path="*" element={<Navigate to="/login" replace />} />
