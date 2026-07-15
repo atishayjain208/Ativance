@@ -137,3 +137,9 @@ export const nextInterviewQuestion = async (sessionId, answer) => {
   const { data } = await API.post('/api/interview/next', { sessionId, answer });
   return data; // { success, question, status, chat: [] }
 };
+
+export const evaluateInterview = async (sessionId) => {
+  const { data } = await API.post('/api/interview/evaluate', { sessionId });
+  return data; // { success, message, evaluation }
+};
+

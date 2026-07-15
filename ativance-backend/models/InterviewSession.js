@@ -54,6 +54,18 @@ const InterviewSessionSchema = new mongoose.Schema(
       enum:    ['active', 'completed'],
       default: 'active',
     },
+    evaluation: {
+      technicalDepth: { type: Number, min: 1, max: 10 },
+      communication:  { type: Number, min: 1, max: 10 },
+      confidence:     { type: Number, min: 1, max: 10 },
+      tips: [
+        {
+          question: { type: String, required: true },
+          tip:      { type: String, required: true },
+        }
+      ],
+      evaluatedAt: { type: Date },
+    },
   },
   {
     timestamps: true,

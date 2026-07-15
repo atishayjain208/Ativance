@@ -7,6 +7,7 @@ const {
   buildInterviewStartPrompt,
   buildInterviewNextPrompt,
 } = require('../utils/interviewPrompt');
+const { buildEvaluationPrompt } = require('../utils/evaluationPrompt');
 
 // ── Helper: strip markdown code fences ────────────────────────────────────────
 const stripFences = (raw) =>
@@ -250,4 +251,134 @@ const nextInterviewQuestion = async (req, res) => {
   }
 };
 
-module.exports = { startInterview, nextInterviewQuestion };
+// ── POST /api/interview/evaluate ──────────────────────────────────────────────
+const evaluateInterview = async (req, res) => {
+  const { sessionId } = req.body;
+
+  if (!sessionId) {
+    return res.status(400).json({ success: false, message: 'Session ID is required.' });
+  }
+
+  try {
+    // ── 1. Fetch completed interview session ─────────────────────────────────
+    const session = await InterviewSession.findOne({
+      _id:    sessionId,
+      userId: req.user.id,
+    });
+
+    if (!session) {
+      return res.status(404).json({ success: false, message: 'Interview session not found.' });
+    }
+
+    // Skip evaluation if it has already been generated
+    if (session.evaluation && session.evaluation.evaluatedAt) {
+      return res.status(200).json({
+        success:    true,
+        message:    'Evaluation retrieved successfully.',
+        evaluation: session.evaluation,
+      });
+    }
+
+    // Must have dialogue history to evaluate
+    if (session.messages.length < 2) {
+      return res.status(400).json({
+        success: false,
+        message: 'Insufficient interview dialogue history to run evaluation.',
+      });
+    }
+
+    // ── 2. Format history log ────────────────────────────────────────────────
+    const historyText = formatHistoryForPrompt(session.messages);
+
+    // ── 3. Call Gemini to evaluate performance ────────────────────────────────
+    const prompt = buildEvaluationPrompt(
+      session.targetCompany,
+      session.interviewType,
+      historyText
+    );
+
+    const tryParseEvaluation = (raw) => {
+      const parsed = JSON.parse(stripFences(raw));
+      
+      // Validate structure
+      const hasScores =
+        typeof parsed.technicalDepth === 'number' &&
+        typeof parsed.communication  === 'number' &&
+        typeof parsed.confidence     === 'number';
+
+      if (!hasScores || !Array.isArray(parsed.tips)) {
+        throw new Error('Evaluation JSON is missing scores or tips array.');
+      }
+
+      const validatedTips = parsed.tips.map((t, idx) => {
+        if (!t.question || !t.tip) {
+          throw new Error(`Tip at index ${idx} is missing question or recommendation text.`);
+        }
+        return {
+          question: String(t.question).trim(),
+          tip:      String(t.tip).trim(),
+        };
+      });
+
+      return {
+        technicalDepth: Math.max(1, Math.min(10, Math.round(parsed.technicalDepth))),
+        communication:  Math.max(1, Math.min(10, Math.round(parsed.communication))),
+        confidence:     Math.max(1, Math.min(10, Math.round(parsed.confidence))),
+        tips:           validatedTips,
+        evaluatedAt:    new Date(),
+      };
+    };
+
+    let rawAI;
+    try {
+      rawAI = await generateContent(prompt);
+    } catch (aiErr) {
+      console.error('[evaluateInterview] Gemini call failed:', aiErr.message);
+      return res.status(aiErr._status || 502).json({
+        success: false,
+        message: aiErr.message || 'AI service is temporarily offline.',
+      });
+    }
+
+    let evaluation;
+    try {
+      evaluation = tryParseEvaluation(rawAI);
+    } catch (_firstErr) {
+      console.warn('[evaluateInterview] First parse failed — retrying.');
+
+      const retryPrompt =
+        prompt +
+        '\n\nIMPORTANT: Your previous response was invalid. ' +
+        'Return ONLY a valid JSON object matching the requested schema. No code fences, no prose.';
+
+      try {
+        const retryRaw = await generateContent(retryPrompt, { skipRetry: true });
+        evaluation = tryParseEvaluation(retryRaw);
+      } catch (retryErr) {
+        console.error('[evaluateInterview] Retry also failed to parse:', retryErr.message);
+        return res.status(502).json({
+          success: false,
+          message: 'Failed to generate mock interview evaluation. Please try again.',
+        });
+      }
+    }
+
+    // ── 4. Persist evaluation to DB ──────────────────────────────────────────
+    session.evaluation = evaluation;
+    if (session.status !== 'completed') {
+      session.status = 'completed'; // auto-complete if evaluated early
+    }
+    await session.save();
+
+    return res.status(200).json({
+      success:    true,
+      message:    'Interview performance evaluated successfully.',
+      evaluation,
+    });
+  } catch (err) {
+    console.error('[evaluateInterview]', err.message);
+    return res.status(500).json({ success: false, message: 'Server error. Please try again.' });
+  }
+};
+
+module.exports = { startInterview, nextInterviewQuestion, evaluateInterview };
