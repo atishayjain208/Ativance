@@ -68,3 +68,14 @@ export const analyzeResume = async () => {
   const { data } = await API.post('/api/resume/analyze');
   return data; // { success, message, resumeAnalysis }
 };
+
+// ── GitHub ────────────────────────────────────────────────────────────────────
+
+/**
+ * Analyze a GitHub user's public profile and repos.
+ * @param {string} username  GitHub username
+ */
+export const analyzeGithub = async (username) => {
+  const { data } = await API.get(`/api/github/analyze/${encodeURIComponent(username)}`);
+  return data; // { success, githubStats, warning? }
+};
