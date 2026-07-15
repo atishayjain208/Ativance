@@ -143,8 +143,187 @@ const fetchUserProfile = async (username) => {
   return githubFetch(`/users/${encodeURIComponent(username.trim())}`);
 };
 
+/**
+ * fetchRepoLanguages(owner, repoName)
+ *
+ * Returns the language breakdown for a single repo as { language: bytes }.
+ * e.g. { JavaScript: 42100, CSS: 3200 }
+ *
+ * Returns an empty object on 404 (empty/deleted repos) rather than throwing.
+ *
+ * @param {string} owner
+ * @param {string} repoName
+ * @returns {Promise<object>}
+ */
+const fetchRepoLanguages = async (owner, repoName) => {
+  try {
+    return await githubFetch(`/repos/${encodeURIComponent(owner)}/${encodeURIComponent(repoName)}/languages`);
+  } catch (err) {
+    // An individual repo's language endpoint 404ing is non-fatal
+    if (err._tag === GITHUB_ERRORS.NOT_FOUND) return {};
+    throw err;
+  }
+};
+
+/**
+ * checkReadme(owner, repoName)
+ *
+ * Returns true if the repo has a README file, false otherwise.
+ * Uses a HEAD request (no body) to avoid wasting bandwidth.
+ *
+ * ⚠️  Each call counts as one API request against the rate limit.
+ *
+ * @param {string} owner
+ * @param {string} repoName
+ * @returns {Promise<boolean>}
+ */
+const checkReadme = async (owner, repoName) => {
+  const controller = new AbortController();
+  const timer      = setTimeout(() => controller.abort(), TIMEOUT_MS);
+
+  try {
+    const res = await fetch(
+      `${GITHUB_API}/repos/${encodeURIComponent(owner)}/${encodeURIComponent(repoName)}/readme`,
+      {
+        method: 'HEAD',
+        signal: controller.signal,
+        headers: {
+          Accept:       'application/vnd.github+json',
+          'User-Agent': 'Ativance-App/1.0',
+          'X-GitHub-Api-Version': '2022-11-28',
+          // ...(process.env.GITHUB_TOKEN && { Authorization: `Bearer ${process.env.GITHUB_TOKEN}` }),
+        },
+      }
+    );
+    clearTimeout(timer);
+    return res.ok; // 200 → has README, 404 → missing
+  } catch {
+    clearTimeout(timer);
+    return false; // treat fetch errors as "no README"
+  }
+};
+
+/**
+ * runWithConcurrency(tasks, limit)
+ *
+ * Runs an array of async task functions with at most `limit` in-flight at once.
+ * This avoids firing 100 parallel requests and burning the rate limit instantly.
+ *
+ * @param {Array<() => Promise<any>>} tasks
+ * @param {number} limit
+ * @returns {Promise<Array<any>>}
+ */
+const runWithConcurrency = async (tasks, limit) => {
+  const results = [];
+  let index = 0;
+
+  const worker = async () => {
+    while (index < tasks.length) {
+      const i = index++;
+      results[i] = await tasks[i]();
+    }
+  };
+
+  const workers = Array.from({ length: Math.min(limit, tasks.length) }, worker);
+  await Promise.all(workers);
+  return results;
+};
+
+/**
+ * aggregateGithubStats(username)
+ *
+ * Orchestrates the full GitHub analysis for a user:
+ *   1. Fetch the user's public profile.
+ *   2. Fetch all repos (up to 100).
+ *   3. For each non-forked repo, fetch languages + check for README.
+ *      (Runs with concurrency=5 to stay well within rate limits.)
+ *   4. Aggregate into a clean summary object.
+ *
+ * ⚠️  RATE LIMIT BUDGET:
+ *   Each call uses roughly: 1 (profile) + 1 (repos) + N*2 (languages + readme per repo)
+ *   For a user with 20 repos: ~43 requests. The 60 req/hour unauthenticated limit
+ *   means this can be called ~1–2 times per hour per server IP before it degrades.
+ *   Add GITHUB_TOKEN to raise the ceiling to 5,000 req/hour.
+ *
+ * @param {string} username
+ * @returns {Promise<object>}  Aggregated stats summary
+ */
+const aggregateGithubStats = async (username) => {
+  // 1. Profile + repos in parallel (2 requests)
+  const [profile, repos] = await Promise.all([
+    fetchUserProfile(username),
+    fetchUserRepos(username),
+  ]);
+
+  // 2. Work only on non-forked repos for language/readme enrichment
+  //    (forked repos skew language counts and usually have READMEs upstream)
+  const ownRepos = repos.filter((r) => !r.fork);
+
+  // 3. Enrich each repo concurrently, max 5 at a time
+  const enrichTasks = ownRepos.map((repo) => async () => {
+    const [languages, hasReadme] = await Promise.all([
+      fetchRepoLanguages(profile.login, repo.name),
+      checkReadme(profile.login, repo.name),
+    ]);
+    return { repo, languages, hasReadme };
+  });
+
+  const enriched = await runWithConcurrency(enrichTasks, 5);
+
+  // 4. Aggregate language totals (bytes per language across all repos)
+  const languageTotals = {};
+  for (const { languages } of enriched) {
+    for (const [lang, bytes] of Object.entries(languages)) {
+      languageTotals[lang] = (languageTotals[lang] || 0) + bytes;
+    }
+  }
+
+  // Sort languages by byte count descending → top languages first
+  const totalLanguages = Object.fromEntries(
+    Object.entries(languageTotals).sort(([, a], [, b]) => b - a)
+  );
+
+  // 5. Flag repos missing a description or README
+  const reposMissingReadme = enriched
+    .filter(({ hasReadme }) => !hasReadme)
+    .map(({ repo }) => ({ name: repo.name, url: repo.html_url }));
+
+  const reposMissingDescription = ownRepos
+    .filter((r) => !r.description || r.description.trim() === '')
+    .map((r) => ({ name: r.name, url: r.html_url }));
+
+  // 6. Build the summary object
+  const stats = {
+    username:               profile.login,
+    name:                   profile.name || '',
+    avatarUrl:              profile.avatar_url,
+    publicReposTotal:       profile.public_repos,   // total on GH profile (may exceed 100)
+    analyzedRepos:          ownRepos.length,         // non-forked repos we actually analyzed
+    forkedRepos:            repos.length - ownRepos.length,
+    totalLanguages,                                  // { Language: totalBytes }
+    topLanguages:           Object.keys(totalLanguages).slice(0, 5),
+    reposMissingReadme,
+    reposMissingDescription,
+    repoDetails: enriched.map(({ repo, languages, hasReadme }) => ({
+      name:        repo.name,
+      url:         repo.html_url,
+      description: repo.description || '',
+      languages,
+      hasReadme,
+      stars:       repo.stargazers_count,
+      updatedAt:   repo.pushed_at,
+    })),
+    syncedAt: new Date(),
+  };
+
+  return stats;
+};
+
 module.exports = {
   fetchUserRepos,
   fetchUserProfile,
+  fetchRepoLanguages,
+  checkReadme,
+  aggregateGithubStats,
   GITHUB_ERRORS,
 };
