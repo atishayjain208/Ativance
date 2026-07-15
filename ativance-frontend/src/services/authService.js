@@ -62,3 +62,9 @@ export const uploadResume = async (file, onProgress) => {
   });
   return data; // { success, message, warning?, resume, textExtracted }
 };
+
+/** Trigger AI analysis of the stored resume text */
+export const analyzeResume = async () => {
+  const { data } = await API.post('/api/resume/analyze');
+  return data; // { success, message, resumeAnalysis }
+};
