@@ -1,7 +1,7 @@
 const path   = require('path');
 const User   = require('../models/User');
-const { extractTextFromPDF }       = require('../utils/pdfParser');
-const { generateContent }          = require('../utils/geminiClient');
+const { extractTextFromPDF }        = require('../utils/pdfParser');
+const { generateContent, errorResponse } = require('../utils/geminiClient');
 const { buildResumeAnalysisPrompt } = require('../utils/resumePrompt');
 
 // ── Helper: strip markdown code fences Gemini sometimes wraps JSON in ────────
@@ -86,8 +86,10 @@ const uploadResume = async (req, res) => {
 };
 
 // ── POST /api/resume/analyze ─────────────────────────────────────────────────
+const MIN_RESUME_CHARS = 200; // guard against near-empty extractions
+
 const analyzeResume = async (req, res) => {
-  // ── 1. Load the user and check resumeText exists ──────────────────────────
+  // ── 1. Load user ──────────────────────────────────────────────────────────
   let user;
   try {
     user = await User.findById(req.user.id).select('-password');
@@ -96,37 +98,45 @@ const analyzeResume = async (req, res) => {
     }
   } catch (err) {
     console.error('[analyzeResume] DB fetch:', err.message);
-    return res.status(500).json({ success: false, message: 'Server error.' });
+    return res.status(500).json({ success: false, message: 'Server error. Please try again.' });
   }
 
-  if (!user.resumeText || !user.resumeText.trim()) {
+  // ── 2. Validate resumeText before touching the AI ─────────────────────────
+  const text = (user.resumeText || '').trim();
+
+  if (!text) {
     return res.status(400).json({
       success: false,
       message: 'No resume text found. Please upload a readable PDF first.',
     });
   }
 
-  // ── 2. Build the prompt and call Gemini ───────────────────────────────────
-  const prompt = buildResumeAnalysisPrompt(user.resumeText);
+  if (text.length < MIN_RESUME_CHARS) {
+    return res.status(400).json({
+      success: false,
+      message:
+        `Your resume text is too short (${text.length} characters). ` +
+        'Please upload a more complete, text-based PDF.',
+    });
+  }
+
+  // ── 3. Build prompt and call Gemini ──────────────────────────────────────
+  const prompt = buildResumeAnalysisPrompt(text);
   let rawResponse;
 
   try {
     rawResponse = await generateContent(prompt);
   } catch (aiErr) {
-    console.error('[analyzeResume] Gemini call failed:', aiErr.message);
-    return res.status(502).json({
-      success: false,
-      message: 'AI service is temporarily unavailable. Please try again shortly.',
-    });
+    // _tag and _status are set by geminiClient — log real error, return friendly message
+    console.error(`[analyzeResume] Gemini call failed (tag=${aiErr._tag}):`, aiErr.message);
+    const { status, message } = errorResponse(aiErr._tag || 'AI_ERROR');
+    return res.status(status).json({ success: false, message });
   }
 
-  // ── 3. Parse the response — strip fences, retry once on failure ───────────
+  // ── 4. Parse response — strip fences, retry once if needed ──────────────
   let analysis;
 
-  const tryParse = (raw) => {
-    const cleaned = stripFences(raw);
-    return JSON.parse(cleaned); // throws on invalid JSON
-  };
+  const tryParse = (raw) => JSON.parse(stripFences(raw)); // throws on bad JSON
 
   try {
     analysis = tryParse(rawResponse);
@@ -138,17 +148,15 @@ const analyzeResume = async (req, res) => {
       '\n\nIMPORTANT: Your previous response could not be parsed as JSON. ' +
       'Return ONLY raw JSON with no markdown, no code fences, no extra text.';
 
-    let retryRaw;
     try {
-      retryRaw = await generateContent(retryPrompt);
+      const retryRaw = await generateContent(retryPrompt, { skipRetry: true });
       analysis = tryParse(retryRaw);
     } catch (retryErr) {
-      console.error('[analyzeResume] Retry parse also failed:', retryErr.message);
-      return res.status(502).json({
-        success: false,
-        message:
-          'The AI returned an unreadable response. Please try again — this is usually a one-time glitch.',
-      });
+      // Use the typed status if it came from Gemini, otherwise default to 502
+      const tag     = retryErr._tag || 'AI_ERROR';
+      const { status, message } = errorResponse(tag);
+      console.error(`[analyzeResume] Retry failed (tag=${tag}):`, retryErr.message);
+      return res.status(status).json({ success: false, message });
     }
   }
 
