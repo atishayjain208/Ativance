@@ -96,3 +96,32 @@ export const analyzeDSA = async () => {
   const { data } = await API.post('/api/dsa/analyze');
   return data; // { success, weakTopics, weakTopicDetails, recommendedProblems }
 };
+
+// ── AI Mentor ─────────────────────────────────────────────────────────────────
+
+export const getMentorHistory = async () => {
+  const { data } = await API.get('/api/mentor');
+  return data; // { success, chat: [] }
+};
+
+export const chatWithMentor = async (question) => {
+  const { data } = await API.post('/api/mentor/chat', { question });
+  return data; // { success, reply, chat: [] }
+};
+
+// ── Study Roadmap ─────────────────────────────────────────────────────────────
+
+export const getRoadmap = async () => {
+  const { data } = await API.get('/api/roadmap');
+  return data; // { success, roadmap }
+};
+
+export const generateRoadmap = async () => {
+  const { data } = await API.post('/api/roadmap/generate');
+  return data; // { success, message, roadmap }
+};
+
+export const toggleRoadmapDay = async (day) => {
+  const { data } = await API.patch(`/api/roadmap/${encodeURIComponent(day)}/toggle`);
+  return data; // { success, message, roadmap }
+};
