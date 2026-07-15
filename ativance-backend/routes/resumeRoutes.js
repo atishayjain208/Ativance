@@ -3,7 +3,7 @@ const router  = express.Router();
 
 const protect      = require('../middleware/authMiddleware');
 const upload       = require('../middleware/uploadMiddleware');
-const { uploadResume } = require('../controllers/resumeController');
+const { uploadResume, analyzeResume } = require('../controllers/resumeController');
 
 // All resume routes are protected
 router.use(protect);
@@ -44,5 +44,8 @@ router.post('/upload', (req, res, next) => {
     next(); // hand off to the controller
   });
 }, uploadResume);
+
+// POST /api/resume/analyze — run AI analysis on stored resumeText
+router.post('/analyze', analyzeResume);
 
 module.exports = router;
