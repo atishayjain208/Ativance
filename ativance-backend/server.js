@@ -10,6 +10,7 @@ const githubRoutes = require('./routes/githubRoutes');
 const dsaRoutes    = require('./routes/dsaRoutes');
 const mentorRoutes = require('./routes/mentorRoutes');
 const roadmapRoutes = require('./routes/roadmapRoutes');
+const interviewRoutes = require('./routes/interviewRoutes');
 
 const app = express();
 const PORT = process.env.PORT || 5000;
@@ -25,6 +26,7 @@ app.use('/api/github', githubRoutes);
 app.use('/api/dsa',    dsaRoutes);
 app.use('/api/mentor', mentorRoutes);
 app.use('/api/roadmap', roadmapRoutes);
+app.use('/api/interview', interviewRoutes);
 
 const startServer = async () => {
   await connectDB();

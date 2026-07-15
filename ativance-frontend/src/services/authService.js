@@ -125,3 +125,15 @@ export const toggleRoadmapDay = async (day) => {
   const { data } = await API.patch(`/api/roadmap/${encodeURIComponent(day)}/toggle`);
   return data; // { success, message, roadmap }
 };
+
+// ── Interview Simulator ───────────────────────────────────────────────────────
+
+export const startInterview = async (targetCompany, interviewType) => {
+  const { data } = await API.post('/api/interview/start', { targetCompany, interviewType });
+  return data; // { success, sessionId, question, status }
+};
+
+export const nextInterviewQuestion = async (sessionId, answer) => {
+  const { data } = await API.post('/api/interview/next', { sessionId, answer });
+  return data; // { success, question, status, chat: [] }
+};
