@@ -1,4 +1,7 @@
 const DSAProgress = require('../models/DSAProgress');
+const { detectWeakTopics }      = require('../utils/dsaAnalyzer');
+const { buildDSAProblemPrompt } = require('../utils/dsaPrompt');
+const { generateContent }       = require('../utils/geminiClient');
 
 // ── GET /api/dsa ──────────────────────────────────────────────────────────────
 const getDSAProgress = async (req, res) => {
@@ -110,4 +113,141 @@ const updateDSAProgress = async (req, res) => {
   });
 };
 
-module.exports = { getDSAProgress, updateDSAProgress };
+// ── POST /api/dsa/analyze ─────────────────────────────────────────────────────
+const analyzeWeakTopics = async (req, res) => {
+  // ── 1. Load the user's progress ─────────────────────────────────────────────
+  let progress;
+  try {
+    progress = await DSAProgress.findOne({ userId: req.user.id });
+  } catch (err) {
+    console.error('[analyzeWeakTopics] DB fetch:', err.message);
+    return res.status(500).json({ success: false, message: 'Server error. Please try again.' });
+  }
+
+  if (!progress) {
+    return res.status(400).json({
+      success: false,
+      message: 'No DSA progress found. Please submit your solved counts first via POST /api/dsa/update.',
+    });
+  }
+
+  // ── 2. Rule-based weak-topic detection ──────────────────────────────────────
+  const weakEntries = detectWeakTopics(progress.solvedByTopic);
+
+  if (!weakEntries.length) {
+    return res.status(200).json({
+      success:    true,
+      message:    'No weak topics detected — you are at or above the baseline on all major topics!',
+      weakTopics: [],
+      recommendedProblems: [],
+    });
+  }
+
+  const weakTopicNames = weakEntries.map((e) => e.topic);
+  console.log(`[analyzeWeakTopics] Weak topics for user ${req.user.id}:`, weakTopicNames);
+
+  // ── 3. Fetch Gemini recommendations per weak topic ───────────────────────────
+  // Run max 3 Gemini calls concurrently to avoid hammering the API.
+  const stripFences = (raw) =>
+    raw.trim()
+       .replace(/^```(?:json)?\s*/i, '')
+       .replace(/\s*```\s*$/, '')
+       .trim();
+
+  const tryParseProblems = (raw) => {
+    const parsed = JSON.parse(stripFences(raw));
+    if (!Array.isArray(parsed)) throw new Error('Response is not a JSON array.');
+    // Validate each item has the required fields
+    return parsed.filter(
+      (p) =>
+        p &&
+        typeof p.title      === 'string' && p.title.trim() &&
+        typeof p.difficulty === 'string' && ['Easy', 'Medium', 'Hard'].includes(p.difficulty) &&
+        typeof p.topic      === 'string' && p.topic.trim()
+    );
+  };
+
+  const fetchProblemsForTopic = async ({ topic, count, threshold }) => {
+    const prompt = buildDSAProblemPrompt(topic, count, threshold);
+    let rawAI;
+
+    try {
+      rawAI = await generateContent(prompt);
+    } catch (aiErr) {
+      console.error(`[analyzeWeakTopics] Gemini failed for "${topic}" (tag=${aiErr._tag}):`, aiErr.message);
+      return []; // non-fatal: skip this topic
+    }
+
+    try {
+      return tryParseProblems(rawAI);
+    } catch (_firstErr) {
+      console.warn(`[analyzeWeakTopics] First parse failed for "${topic}" — retrying.`);
+      const retryPrompt =
+        prompt +
+        '\n\nIMPORTANT: Your previous response could not be parsed as a JSON array. ' +
+        'Return ONLY a raw JSON array of { title, difficulty, topic } objects. No other text.';
+      try {
+        const retryRaw = await generateContent(retryPrompt, { skipRetry: true });
+        return tryParseProblems(retryRaw);
+      } catch (retryErr) {
+        console.error(`[analyzeWeakTopics] Retry also failed for "${topic}":`, retryErr.message);
+        return [];
+      }
+    }
+  };
+
+  // Concurrency-limited runner (max 3 in-flight at once)
+  const runWithConcurrency = async (tasks, limit) => {
+    const results = [];
+    let idx = 0;
+    const worker = async () => {
+      while (idx < tasks.length) {
+        const i = idx++;
+        results[i] = await tasks[i]();
+      }
+    };
+    await Promise.all(Array.from({ length: Math.min(limit, tasks.length) }, worker));
+    return results;
+  };
+
+  const problemArrays = await runWithConcurrency(
+    weakEntries.map((entry) => () => fetchProblemsForTopic(entry)),
+    3
+  );
+
+  // Flatten all per-topic problem arrays into one list
+  const recommendedProblems = problemArrays.flat();
+  const analysisGeneratedAt = new Date();
+
+  // ── 4. Persist weak topics + recommendations ─────────────────────────────────
+  try {
+    await DSAProgress.findOneAndUpdate(
+      { userId: req.user.id },
+      {
+        $set: {
+          weakTopics:          weakTopicNames,
+          recommendedProblems,
+          analysisGeneratedAt,
+          lastUpdated:         analysisGeneratedAt,
+        },
+      },
+      { new: true }
+    );
+  } catch (dbErr) {
+    console.error('[analyzeWeakTopics] DB save failed:', dbErr.message);
+    // Non-fatal — return the analysis even if persistence fails
+  }
+
+  // ── 5. Respond ───────────────────────────────────────────────────────────────
+  return res.status(200).json({
+    success:             true,
+    message:             `Found ${weakTopicNames.length} weak topic(s). ${recommendedProblems.length} problems recommended.`,
+    weakTopics:          weakTopicNames,
+    weakTopicDetails:    weakEntries,          // includes count, threshold, gap
+    recommendedProblems,
+    analysisGeneratedAt,
+  });
+};
+
+module.exports = { getDSAProgress, updateDSAProgress, analyzeWeakTopics };
+

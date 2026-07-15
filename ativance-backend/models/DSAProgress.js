@@ -30,7 +30,17 @@ const TopicEntrySchema = new mongoose.Schema(
       min:     [0, 'Count cannot be negative'],
     },
   },
-  { _id: false } // no separate _id per topic entry; topic name is the key
+  { _id: false }
+);
+
+// Sub-schema for a single AI-recommended practice problem
+const RecommendedProblemSchema = new mongoose.Schema(
+  {
+    title:      { type: String, required: true, trim: true },
+    difficulty: { type: String, enum: ['Easy', 'Medium', 'Hard'], required: true },
+    topic:      { type: String, required: true, trim: true },
+  },
+  { _id: false }
 );
 
 const DSAProgressSchema = new mongoose.Schema(
@@ -63,10 +73,24 @@ const DSAProgressSchema = new mongoose.Schema(
     },
 
     // ── AI / rule-based weak topics ────────────────────────────────────────────
-    // Populated by the DSA Coach module based on low solve counts or user-flagged topics.
+    // Populated by POST /api/dsa/analyze — rule-based detection against baselines.
     weakTopics: {
       type:    [String],
       default: [],
+    },
+
+    // ── AI-recommended practice problems ──────────────────────────────────────
+    // One entry per weak topic, each containing 8–12 specific problem suggestions
+    // returned by Gemini. Replaced on every /analyze call.
+    recommendedProblems: {
+      type:    [RecommendedProblemSchema],
+      default: [],
+    },
+
+    // When the last AI analysis was successfully run
+    analysisGeneratedAt: {
+      type:    Date,
+      default: null,
     },
 
     // ── Timestamps ─────────────────────────────────────────────────────────────
