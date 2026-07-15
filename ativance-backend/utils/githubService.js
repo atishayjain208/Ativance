@@ -270,7 +270,7 @@ const aggregateGithubStats = async (username) => {
 
   const enriched = await runWithConcurrency(enrichTasks, 5);
 
-  // 4. Aggregate language totals (bytes per language across all repos)
+  // 4. Aggregate language totals (bytes) and compute percentage distribution
   const languageTotals = {};
   for (const { languages } of enriched) {
     for (const [lang, bytes] of Object.entries(languages)) {
@@ -278,12 +278,69 @@ const aggregateGithubStats = async (username) => {
     }
   }
 
-  // Sort languages by byte count descending → top languages first
-  const totalLanguages = Object.fromEntries(
-    Object.entries(languageTotals).sort(([, a], [, b]) => b - a)
+  // Sort by byte count descending so iteration order mirrors importance
+  const sortedLangEntries = Object.entries(languageTotals).sort(([, a], [, b]) => b - a);
+  const totalBytes        = sortedLangEntries.reduce((sum, [, b]) => sum + b, 0);
+
+  // { Language: totalBytes } — raw bytes kept for future use
+  const totalLanguages = Object.fromEntries(sortedLangEntries);
+
+  // { Language: percentage } — rounded to 1 decimal, e.g. { JavaScript: 58.3, Python: 21.7 }
+  const languageDistribution = Object.fromEntries(
+    sortedLangEntries.map(([lang, bytes]) => [
+      lang,
+      totalBytes > 0 ? Math.round((bytes / totalBytes) * 1000) / 10 : 0,
+    ])
   );
 
-  // 5. Flag repos missing a description or README
+  // 5. Commit-consistency / activity metrics (rule-based, no extra API calls)
+  //
+  //   We use `pushed_at` (last push date) as the closest public proxy for
+  //   commit activity — the actual commit endpoint requires auth for most users.
+  //
+  //   Activity tiers (based on most-recently-pushed own repo):
+  //     "very_active"  — pushed within the last 7 days
+  //     "active"       — pushed within the last 30 days
+  //     "moderate"     — pushed within the last 90 days
+  //     "inactive"     — nothing pushed in the last 90 days
+  //
+  //   These labels are intentionally simple and human-readable so the frontend
+  //   can display them without any additional logic.
+
+  const now       = Date.now();
+  const MS_7D     = 7  * 24 * 60 * 60 * 1000;
+  const MS_30D    = 30 * 24 * 60 * 60 * 1000;
+  const MS_90D    = 90 * 24 * 60 * 60 * 1000;
+
+  // Parse push dates for every owned (non-forked) repo
+  const pushDates = ownRepos
+    .map((r) => (r.pushed_at ? new Date(r.pushed_at).getTime() : 0))
+    .filter(Boolean);
+
+  const mostRecentPush  = pushDates.length ? Math.max(...pushDates) : 0;
+  const daysSinceLatest = mostRecentPush ? Math.floor((now - mostRecentPush) / (24 * 60 * 60 * 1000)) : null;
+
+  const activityTier =
+    mostRecentPush === 0        ? 'no_data'
+    : now - mostRecentPush < MS_7D  ? 'very_active'
+    : now - mostRecentPush < MS_30D ? 'active'
+    : now - mostRecentPush < MS_90D ? 'moderate'
+    : 'inactive';
+
+  // Count how many repos were pushed in the last 30 days
+  const reposUpdatedLast30Days = pushDates.filter((d) => now - d < MS_30D).length;
+  const reposUpdatedLast90Days = pushDates.filter((d) => now - d < MS_90D).length;
+
+  const commitConsistency = {
+    activityTier,          // human-readable label
+    isActive:              now - mostRecentPush < MS_30D,  // convenience boolean
+    daysSinceLatestPush:   daysSinceLatest,
+    reposUpdatedLast30Days,
+    reposUpdatedLast90Days,
+    mostRecentPushAt:      mostRecentPush ? new Date(mostRecentPush).toISOString() : null,
+  };
+
+  // 6. Flag repos missing a description or README
   const reposMissingReadme = enriched
     .filter(({ hasReadme }) => !hasReadme)
     .map(({ repo }) => ({ name: repo.name, url: repo.html_url }));
@@ -292,26 +349,32 @@ const aggregateGithubStats = async (username) => {
     .filter((r) => !r.description || r.description.trim() === '')
     .map((r) => ({ name: r.name, url: r.html_url }));
 
-  // 6. Build the summary object
+  // 7. Build the final summary object
   const stats = {
     username:               profile.login,
     name:                   profile.name || '',
     avatarUrl:              profile.avatar_url,
     publicReposTotal:       profile.public_repos,   // total on GH profile (may exceed 100)
-    analyzedRepos:          ownRepos.length,         // non-forked repos we actually analyzed
+    analyzedRepos:          ownRepos.length,         // non-forked repos we enriched
     forkedRepos:            repos.length - ownRepos.length,
     totalLanguages,                                  // { Language: totalBytes }
+    languageDistribution,                            // { Language: percentage }
     topLanguages:           Object.keys(totalLanguages).slice(0, 5),
+    commitConsistency,                               // activity tier + recency metrics
     reposMissingReadme,
     reposMissingDescription,
     repoDetails: enriched.map(({ repo, languages, hasReadme }) => ({
-      name:        repo.name,
-      url:         repo.html_url,
-      description: repo.description || '',
+      name:         repo.name,
+      url:          repo.html_url,
+      description:  repo.description || '',
       languages,
       hasReadme,
-      stars:       repo.stargazers_count,
-      updatedAt:   repo.pushed_at,
+      stars:        repo.stargazers_count,
+      updatedAt:    repo.pushed_at,
+      // Convenience flag — was this repo touched in the last 30 days?
+      recentlyActive: repo.pushed_at
+        ? now - new Date(repo.pushed_at).getTime() < MS_30D
+        : false,
     })),
     syncedAt: new Date(),
   };
