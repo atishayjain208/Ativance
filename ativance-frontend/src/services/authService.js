@@ -79,3 +79,20 @@ export const analyzeGithub = async (username) => {
   const { data } = await API.get(`/api/github/analyze/${encodeURIComponent(username)}`);
   return data; // { success, githubStats, warning? }
 };
+
+// ── DSA Coach ─────────────────────────────────────────────────────────────────
+
+export const getDSAProgress = async () => {
+  const { data } = await API.get('/api/dsa');
+  return data; // { success, progress, totalSolved? }
+};
+
+export const updateDSAProgress = async (payload) => {
+  const { data } = await API.post('/api/dsa/update', payload);
+  return data; // { success, message, progress, totalSolved }
+};
+
+export const analyzeDSA = async () => {
+  const { data } = await API.post('/api/dsa/analyze');
+  return data; // { success, weakTopics, weakTopicDetails, recommendedProblems }
+};
