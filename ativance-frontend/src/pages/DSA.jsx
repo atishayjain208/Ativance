@@ -468,7 +468,18 @@ export default function DSACoach() {
             </form>
 
             {syncError && (
-              <p className="text-xs text-red-400 bg-red-500/10 border border-red-500/30 px-3 py-2 rounded-lg">{syncError}</p>
+              <div className="text-xs text-red-400 bg-red-500/10 border border-red-500/30 px-3 py-2.5 rounded-lg space-y-1">
+                <p>{syncError}</p>
+                <button
+                  type="button"
+                  onClick={() => {
+                    document.getElementById('manual-entry-section')?.scrollIntoView({ behavior: 'smooth' });
+                  }}
+                  className="text-indigo-400 hover:text-indigo-300 font-semibold underline block text-left"
+                >
+                  Enter stats manually instead →
+                </button>
+              </div>
             )}
             {syncSuccess && (
               <p className="text-xs text-emerald-400 bg-emerald-500/10 border border-emerald-500/30 px-3 py-2 rounded-lg">{syncSuccess}</p>
@@ -480,7 +491,7 @@ export default function DSACoach() {
           </div>
 
           {/* Manual Entry Form */}
-          <div className="bg-slate-900 border border-slate-800 rounded-2xl p-6">
+          <div id="manual-entry-section" className="bg-slate-900 border border-slate-800 rounded-2xl p-6">
             <h2 className="text-sm font-semibold text-slate-300 uppercase tracking-wider mb-5">✏️ Manual Entry</h2>
             <UpdateForm
               initial={{ diff: { easy: diff.easy, medium: diff.medium, hard: diff.hard }, topics: initTopics }}
@@ -494,8 +505,19 @@ export default function DSACoach() {
         <>
           {/* ── Difficulty stat cards ── */}
           <div className="bg-slate-900 border border-slate-800 rounded-2xl p-5 space-y-4">
-            <div className="flex items-center justify-between">
-              <h2 className="text-sm font-semibold text-slate-300 uppercase tracking-wider">📊 Total Solved</h2>
+            <div className="flex items-center justify-between flex-wrap gap-2">
+              <div className="flex items-center gap-3">
+                <h2 className="text-sm font-semibold text-slate-300 uppercase tracking-wider">📊 Total Solved</h2>
+                {progress?.dataSource === 'leetcode-auto' ? (
+                  <span className="text-[10px] font-semibold text-indigo-400 bg-indigo-500/10 border border-indigo-500/25 rounded-full px-2 py-0.5">
+                    Auto-synced from LeetCode ({progress?.leetcodeUsername || 'profile'})
+                  </span>
+                ) : (
+                  <span className="text-[10px] font-semibold text-slate-400 bg-slate-800 border border-slate-700 rounded-full px-2 py-0.5">
+                    Manually Entered
+                  </span>
+                )}
+              </div>
               <span className="text-2xl font-extrabold text-white">{totalSolved}</span>
             </div>
             <div className="flex gap-3 flex-wrap">
