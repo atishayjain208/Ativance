@@ -18,8 +18,8 @@ router.get('/', getDSAProgress);
 // POST /api/dsa/update   — submit / update solvedByDifficulty and solvedByTopic (manual)
 router.post('/update', updateDSAProgress);
 
-// POST /api/dsa/sync     — auto-fetch and sync stats from LeetCode GraphQL
-router.post('/sync', syncLeetcodeStats);
+// POST /api/dsa/sync/:username — auto-fetch and sync stats from LeetCode GraphQL
+router.post('/sync/:username', syncLeetcodeStats);
 
 // POST /api/dsa/analyze  — detect weak topics and fetch Gemini problem recommendations
 router.post('/analyze', analyzeWeakTopics);

@@ -88,6 +88,12 @@ const updateDSAProgress = async (req, res) => {
     update.solvedByTopic = Array.from(seen.values());
   }
 
+  // Set manual data source and reset stale AI recommendations
+  update.dataSource          = 'manual';
+  update.weakTopics          = [];
+  update.recommendedProblems = [];
+  update.analysisGeneratedAt = null;
+
   // ── Upsert the progress document ───────────────────────────────────────────
   let progress;
   try {
@@ -250,32 +256,20 @@ const analyzeWeakTopics = async (req, res) => {
   });
 };
 
-// ── POST /api/dsa/sync ────────────────────────────────────────────────────────
+// ── POST /api/dsa/sync/:username ─────────────────────────────────────────────
 const syncLeetcodeStats = async (req, res) => {
-  let { leetcodeUsername } = req.body;
+  const { username } = req.params;
 
-  // 1. If not in request body, check if the user has an existing progress document with linked username
-  if (!leetcodeUsername || !leetcodeUsername.trim()) {
-    try {
-      const existing = await DSAProgress.findOne({ userId: req.user.id });
-      if (existing && existing.leetcodeUsername) {
-        leetcodeUsername = existing.leetcodeUsername;
-      }
-    } catch (dbErr) {
-      console.error('[syncLeetcodeStats] DB lookup error:', dbErr.message);
-    }
-  }
-
-  if (!leetcodeUsername || !leetcodeUsername.trim()) {
+  if (!username || !username.trim()) {
     return res.status(400).json({
       success: false,
-      message: 'LeetCode username is required for sync.',
+      message: 'LeetCode username is required in the URL path.',
     });
   }
 
-  const usernameTrimmed = leetcodeUsername.trim();
+  const usernameTrimmed = username.trim();
 
-  // 2. Fetch stats from LeetCode GraphQL service
+  // 1. Fetch stats from LeetCode GraphQL service
   let leetcodeData;
   try {
     leetcodeData = await fetchLeetcodeStats(usernameTrimmed);
@@ -293,7 +287,7 @@ const syncLeetcodeStats = async (req, res) => {
     });
   }
 
-  // 3. Upsert into DSAProgress
+  // 2. Upsert into DSAProgress with dataSource 'leetcode-auto'
   let progress;
   try {
     progress = await DSAProgress.findOneAndUpdate(
@@ -303,6 +297,7 @@ const syncLeetcodeStats = async (req, res) => {
           leetcodeUsername:    usernameTrimmed,
           solvedByDifficulty:  leetcodeData.solvedByDifficulty,
           solvedByTopic:       leetcodeData.solvedByTopic,
+          dataSource:          'leetcode-auto',
           lastUpdated:         new Date(),
           // Clear stale AI recommendations since counts have been updated
           weakTopics:          [],

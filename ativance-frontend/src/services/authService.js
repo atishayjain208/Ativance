@@ -98,7 +98,7 @@ export const analyzeDSA = async () => {
 };
 
 export const syncLeetcodeStats = async (leetcodeUsername) => {
-  const { data } = await API.post('/api/dsa/sync', { leetcodeUsername });
+  const { data } = await API.post(`/api/dsa/sync/${encodeURIComponent(leetcodeUsername)}`);
   return data; // { success, message, progress, totalSolved }
 };
 

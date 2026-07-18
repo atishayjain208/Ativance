@@ -100,6 +100,13 @@ const DSAProgressSchema = new mongoose.Schema(
       default: null,
     },
 
+    // ── Data Source Indicator ──────────────────────────────────────────────────
+    dataSource: {
+      type:     String,
+      enum:     ['leetcode-auto', 'manual'],
+      default:  'manual',
+    },
+
     // ── Timestamps ─────────────────────────────────────────────────────────────
     lastUpdated: {
       type:    Date,
