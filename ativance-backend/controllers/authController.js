@@ -55,6 +55,15 @@ const signup = async (req, res) => {
       user: sanitizeUser(user),
     });
   } catch (err) {
+    // Mongoose validation errors (e.g. password too short, invalid formats)
+    if (err.name === 'ValidationError') {
+      const messages = Object.values(err.errors).map((val) => val.message);
+      return res.status(400).json({
+        success: false,
+        message: messages.join(', '),
+      });
+    }
+
     // Mongoose duplicate key race condition fallback
     if (err.code === 11000) {
       return res.status(400).json({

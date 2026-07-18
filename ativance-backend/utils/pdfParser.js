@@ -1,6 +1,6 @@
 const fs       = require('fs');
 const path     = require('path');
-const pdfParse = require('pdf-parse');
+const { PDFParse } = require('pdf-parse');
 
 /**
  * extractTextFromPDF(filePath)
@@ -22,7 +22,11 @@ const extractTextFromPDF = async (filePath) => {
   }
 
   const buffer = fs.readFileSync(absolutePath);
-  const data   = await pdfParse(buffer);
+  
+  // The modern TypeScript-based pdf-parse package (v2.4.5+) expects a Uint8Array
+  // and exposes a PDFParse class rather than a default parsing function.
+  const parser = new PDFParse(new Uint8Array(buffer));
+  const data   = await parser.getText();
 
   // data.text is the concatenated plain text of all pages
   const text = (data.text || '').trim();
@@ -35,3 +39,4 @@ const extractTextFromPDF = async (filePath) => {
 };
 
 module.exports = { extractTextFromPDF };
+

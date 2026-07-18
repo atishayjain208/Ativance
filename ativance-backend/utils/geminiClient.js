@@ -1,7 +1,7 @@
 const { GoogleGenerativeAI } = require('@google/generative-ai');
 
 // ── Constants ─────────────────────────────────────────────────────────────────
-const MODEL_NAME          = 'gemini-1.5-flash';
+const MODEL_NAME          = 'gemini-3.5-flash';
 const TIMEOUT_MS          = 30_000;   // 30 s — abort if Gemini stalls
 const RATE_LIMIT_DELAY_MS = 8_000;    // wait 8 s before retrying a 429
 const MAX_RATE_RETRIES    = 2;        // retry at most twice on rate limit
@@ -24,8 +24,17 @@ const classifyError = (err) => {
   const msg = (err.message || '').toLowerCase();
   const status = err.status || err.httpStatus || err.code;
 
-  if (!process.env.GEMINI_API_KEY || msg.includes('api key') || msg.includes('api_key') ||
-      msg.includes('unauthorized') || msg.includes('permission denied') || status === 401 || status === 403) {
+  if (
+    !process.env.GEMINI_API_KEY ||
+    msg.includes('api key') ||
+    msg.includes('api_key') ||
+    msg.includes('unauthorized') ||
+    msg.includes('permission denied') ||
+    msg.includes('not found') || // 404 models/gemini-1.5-flash is not found
+    status === 401 ||
+    status === 403 ||
+    status === 404
+  ) {
     return 'INVALID_KEY';
   }
   if (status === 429 || msg.includes('429') || msg.includes('quota') || msg.includes('rate limit')) {
@@ -45,7 +54,10 @@ const classifyError = (err) => {
 const errorResponse = (tag) => {
   switch (tag) {
     case 'INVALID_KEY':
-      return { status: 500, message: 'AI service is misconfigured. Please contact support.' };
+      return {
+        status: 401,
+        message: 'Invalid or restricted AI API key. Please check your GEMINI_API_KEY in ativance-backend/.env.',
+      };
     case 'RATE_LIMIT':
       return { status: 429, message: 'AI service is busy right now. Please wait a moment and try again.' };
     case 'TIMEOUT':
