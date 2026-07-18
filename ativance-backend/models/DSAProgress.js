@@ -53,6 +53,13 @@ const DSAProgressSchema = new mongoose.Schema(
       index:    true,
     },
 
+    // ── LeetCode Sync Integration (Optional) ──────────────────────────────────
+    leetcodeUsername: {
+      type:    String,
+      trim:    true,
+      default: '',
+    },
+
     // ── Difficulty breakdown ───────────────────────────────────────────────────
     // Self-reported counts (MVP). Fields can be extended with custom tiers
     // (e.g. "premium", "blind75") without schema migration thanks to strict: false.

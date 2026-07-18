@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import {
   BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell,
 } from 'recharts';
-import { getDSAProgress, updateDSAProgress, analyzeDSA } from '../services/authService';
+import { getDSAProgress, updateDSAProgress, analyzeDSA, syncLeetcodeStats } from '../services/authService';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Constants — mirrors backend TOPIC_BASELINES for the form
@@ -270,6 +270,12 @@ export default function DSACoach() {
   const [analyzeError, setAnalyzeError]   = useState('');
   const [showForm, setShowForm]           = useState(false);
 
+  // ── LeetCode Sync State ─────────────────────────────────────────────────────
+  const [leetcodeUsername, setLeetcodeUsername] = useState('');
+  const [syncing, setSyncing]                   = useState(false);
+  const [syncError, setSyncError]               = useState('');
+  const [syncSuccess, setSyncSuccess]           = useState('');
+
   // ── Load on mount ───────────────────────────────────────────────────────────
   useEffect(() => { fetchProgress(); }, []);
 
@@ -289,6 +295,7 @@ export default function DSACoach() {
     setProgress(data.progress);
     setTotalSolved(data.totalSolved ?? 0);
     if (data.progress) {
+      setLeetcodeUsername(data.progress.leetcodeUsername || '');
       // Restore previously stored analysis if any
       if (data.progress.weakTopics?.length) {
         // Reconstruct weakDetails from stored weak topics + solvedByTopic
@@ -331,6 +338,25 @@ export default function DSACoach() {
     // Clear stale analysis after counts change
     setWeakDetails([]); setProblems([]); setAnalysisAt(null);
     setShowForm(false);
+  };
+
+  const handleSync = async (e) => {
+    e.preventDefault();
+    if (!leetcodeUsername.trim() || syncing) return;
+
+    setSyncing(true); setSyncError(''); setSyncSuccess('');
+    try {
+      const data = await syncLeetcodeStats(leetcodeUsername);
+      applyProgress(data);
+      // Clear stale analysis after counts change
+      setWeakDetails([]); setProblems([]); setAnalysisAt(null);
+      setSyncSuccess(data.message || 'Synced successfully!');
+      setTimeout(() => setSyncSuccess(''), 4000);
+    } catch (err) {
+      setSyncError(err.response?.data?.message || 'Failed to sync with LeetCode. Verify username is public.');
+    } finally {
+      setSyncing(false);
+    }
   };
 
   // ── Derived chart data ──────────────────────────────────────────────────────
@@ -396,14 +422,71 @@ export default function DSACoach() {
         </div>
       )}
 
-      {/* ── Update form ── */}
+      {/* ── Update form panel ── */}
       {showForm && (
-        <div className="bg-slate-900 border border-slate-800 rounded-2xl p-6">
-          <h2 className="text-sm font-semibold text-slate-300 uppercase tracking-wider mb-5">Update Solved Counts</h2>
-          <UpdateForm
-            initial={{ diff: { easy: diff.easy, medium: diff.medium, hard: diff.hard }, topics: initTopics }}
-            onSaved={handleSaved}
-          />
+        <div className="space-y-4 animate-fadeIn">
+          {/* LeetCode Sync Bar */}
+          <div className="bg-slate-900 border border-slate-800 rounded-2xl p-6 space-y-4">
+            <div>
+              <h3 className="text-sm font-semibold text-slate-300 uppercase tracking-wider">🔗 LeetCode Sync (Automatic)</h3>
+              <p className="text-xs text-slate-500 mt-1">
+                Import problem-solving counts directly from your public LeetCode profile.
+              </p>
+            </div>
+
+            <form onSubmit={handleSync} className="flex gap-3 max-w-md items-end">
+              <div className="flex-1 space-y-1.5">
+                <label htmlFor="leetcode-username" className="block text-xs font-semibold text-slate-400">LeetCode Username</label>
+                <input
+                  id="leetcode-username"
+                  type="text"
+                  value={leetcodeUsername}
+                  onChange={(e) => {
+                    setLeetcodeUsername(e.target.value);
+                    setSyncError('');
+                    setSyncSuccess('');
+                  }}
+                  placeholder="e.g. lee215"
+                  className="w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:ring-1 focus:ring-indigo-500 placeholder-slate-600"
+                />
+              </div>
+              <button
+                type="submit"
+                disabled={syncing || !leetcodeUsername.trim()}
+                className="px-4 py-2 bg-indigo-600 hover:bg-indigo-500 disabled:opacity-50 text-white text-xs font-semibold rounded-lg transition-colors flex items-center justify-center gap-1.5 h-[38px] min-w-[100px]"
+              >
+                {syncing ? (
+                  <>
+                    <svg className="animate-spin h-3.5 w-3.5 text-white" fill="none" viewBox="0 0 24 24">
+                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/>
+                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z"/>
+                    </svg>
+                    Syncing…
+                  </>
+                ) : 'Sync Stats'}
+              </button>
+            </form>
+
+            {syncError && (
+              <p className="text-xs text-red-400 bg-red-500/10 border border-red-500/30 px-3 py-2 rounded-lg">{syncError}</p>
+            )}
+            {syncSuccess && (
+              <p className="text-xs text-emerald-400 bg-emerald-500/10 border border-emerald-500/30 px-3 py-2 rounded-lg">{syncSuccess}</p>
+            )}
+            
+            <p className="text-[10px] text-slate-600 leading-relaxed">
+              ⚠️ LeetCode stats are fetched via an unofficial endpoint. Syncing depends on LeetCode's public servers and profile privacy settings.
+            </p>
+          </div>
+
+          {/* Manual Entry Form */}
+          <div className="bg-slate-900 border border-slate-800 rounded-2xl p-6">
+            <h2 className="text-sm font-semibold text-slate-300 uppercase tracking-wider mb-5">✏️ Manual Entry</h2>
+            <UpdateForm
+              initial={{ diff: { easy: diff.easy, medium: diff.medium, hard: diff.hard }, topics: initTopics }}
+              onSaved={handleSaved}
+            />
+          </div>
         </div>
       )}
 

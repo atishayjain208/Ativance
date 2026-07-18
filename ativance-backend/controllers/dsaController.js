@@ -2,6 +2,7 @@ const DSAProgress = require('../models/DSAProgress');
 const { detectWeakTopics }      = require('../utils/dsaAnalyzer');
 const { buildDSAProblemPrompt } = require('../utils/dsaPrompt');
 const { generateContent }       = require('../utils/geminiClient');
+const { fetchLeetcodeStats, LEETCODE_ERRORS } = require('../utils/leetcodeService');
 
 // ── GET /api/dsa ──────────────────────────────────────────────────────────────
 const getDSAProgress = async (req, res) => {
@@ -249,5 +250,85 @@ const analyzeWeakTopics = async (req, res) => {
   });
 };
 
-module.exports = { getDSAProgress, updateDSAProgress, analyzeWeakTopics };
+// ── POST /api/dsa/sync ────────────────────────────────────────────────────────
+const syncLeetcodeStats = async (req, res) => {
+  let { leetcodeUsername } = req.body;
+
+  // 1. If not in request body, check if the user has an existing progress document with linked username
+  if (!leetcodeUsername || !leetcodeUsername.trim()) {
+    try {
+      const existing = await DSAProgress.findOne({ userId: req.user.id });
+      if (existing && existing.leetcodeUsername) {
+        leetcodeUsername = existing.leetcodeUsername;
+      }
+    } catch (dbErr) {
+      console.error('[syncLeetcodeStats] DB lookup error:', dbErr.message);
+    }
+  }
+
+  if (!leetcodeUsername || !leetcodeUsername.trim()) {
+    return res.status(400).json({
+      success: false,
+      message: 'LeetCode username is required for sync.',
+    });
+  }
+
+  const usernameTrimmed = leetcodeUsername.trim();
+
+  // 2. Fetch stats from LeetCode GraphQL service
+  let leetcodeData;
+  try {
+    leetcodeData = await fetchLeetcodeStats(usernameTrimmed);
+  } catch (err) {
+    console.error(`[syncLeetcodeStats] LeetCode fetch failed for "${usernameTrimmed}" (tag=${err._tag}):`, err.message);
+    
+    // Map typed service error tags to HTTP status codes
+    let status = 502;
+    if (err._tag === LEETCODE_ERRORS.NOT_FOUND) status = 404;
+    if (err._tag === LEETCODE_ERRORS.PRIVATE)   status = 400;
+
+    return res.status(status).json({
+      success: false,
+      message: err.message,
+    });
+  }
+
+  // 3. Upsert into DSAProgress
+  let progress;
+  try {
+    progress = await DSAProgress.findOneAndUpdate(
+      { userId: req.user.id },
+      {
+        $set: {
+          leetcodeUsername:    usernameTrimmed,
+          solvedByDifficulty:  leetcodeData.solvedByDifficulty,
+          solvedByTopic:       leetcodeData.solvedByTopic,
+          lastUpdated:         new Date(),
+          // Clear stale AI recommendations since counts have been updated
+          weakTopics:          [],
+          recommendedProblems: [],
+          analysisGeneratedAt: null,
+        },
+      },
+      {
+        new:    true,
+        upsert: true,
+        setDefaultsOnInsert: true,
+        runValidators: true,
+      }
+    );
+  } catch (dbErr) {
+    console.error('[syncLeetcodeStats] DB save failed:', dbErr.message);
+    return res.status(500).json({ success: false, message: 'Server error saving progress.' });
+  }
+
+  return res.status(200).json({
+    success:     true,
+    message:     `LeetCode stats for "${usernameTrimmed}" synced successfully.`,
+    progress,
+    totalSolved: progress.totalSolved,
+  });
+};
+
+module.exports = { getDSAProgress, updateDSAProgress, analyzeWeakTopics, syncLeetcodeStats };
 

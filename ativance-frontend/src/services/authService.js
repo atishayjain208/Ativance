@@ -97,6 +97,12 @@ export const analyzeDSA = async () => {
   return data; // { success, weakTopics, weakTopicDetails, recommendedProblems }
 };
 
+export const syncLeetcodeStats = async (leetcodeUsername) => {
+  const { data } = await API.post('/api/dsa/sync', { leetcodeUsername });
+  return data; // { success, message, progress, totalSolved }
+};
+
+
 // ── AI Mentor ─────────────────────────────────────────────────────────────────
 
 export const getMentorHistory = async () => {
