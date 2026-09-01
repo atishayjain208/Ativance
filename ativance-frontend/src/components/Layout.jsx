@@ -93,11 +93,11 @@ export default function Layout({ children }) {
         <div className="px-6 py-5 border-b border-[#E5E5E0]/80 flex items-center justify-between">
           <div className="flex items-center gap-2.5">
             <div className="h-8 w-8 rounded-xl bg-indigo-600 flex items-center justify-center shadow-sm">
-              <span className="text-white font-bold text-base leading-none">A</span>
+              <span className="text-white font-bold text-base leading-none">C</span>
             </div>
             <div className="flex flex-col">
               <span className="text-base font-bold text-zinc-900 tracking-tight leading-none">
-                Ativance
+                CareerOS
               </span>
               <span className="text-[10px] font-semibold text-indigo-600 tracking-wider uppercase mt-1">
                 AI Career Copilot
@@ -151,10 +151,10 @@ export default function Layout({ children }) {
           {/* Mobile brand (hidden on md+) */}
           <div className="md:hidden flex items-center gap-2.5">
             <div className="h-7 w-7 rounded-lg bg-indigo-600 flex items-center justify-center shadow-sm">
-              <span className="text-white font-bold text-xs">A</span>
+              <span className="text-white font-bold text-xs">C</span>
             </div>
             <span className="text-base font-bold text-zinc-900 tracking-tight">
-              Ativance
+              CareerOS
             </span>
           </div>
 

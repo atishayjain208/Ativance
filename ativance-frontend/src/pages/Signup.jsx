@@ -50,9 +50,9 @@ export default function Signup() {
       {/* Brand logo header */}
       <div className="mb-6 flex items-center gap-2.5">
         <div className="h-9 w-9 rounded-xl bg-indigo-600 flex items-center justify-center shadow-sm">
-          <span className="text-white font-bold text-lg">A</span>
+          <span className="text-white font-bold text-lg">C</span>
         </div>
-        <span className="text-xl font-bold text-zinc-900 tracking-tight">Ativance</span>
+        <span className="text-xl font-bold text-zinc-900 tracking-tight">CareerOS</span>
       </div>
 
       <div className="w-full max-w-md bg-white rounded-2xl shadow-card p-8 sm:p-10 border border-[#E5E5E0] animate-fadeIn">
