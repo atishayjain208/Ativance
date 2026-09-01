@@ -3,15 +3,21 @@ const mongoose = require('mongoose');
 /**
  * WeeklyRoadmap
  *
- * Stores AI-generated weekly study plans for a user.
- * Each document contains a 7-day breakdown of tasks, focus areas, and completion states.
+ * Stores AI-generated study plans for a user.
+ * Supports three generation modes:
+ *   - "profile" : built from the user's weak areas / profile context (7-day plan)
+ *   - "company"  : targets a specific company with a deadline-driven day count
+ *   - "topic"    : a focused plan on a single custom topic
+ *
+ * The `items` array is intentionally unbounded — day count is determined at
+ * generation time and varies per mode.
  */
 
 const RoadmapItemSchema = new mongoose.Schema(
   {
     day: {
       type:     String,
-      required: [true, 'Day label (e.g. "Monday") is required'],
+      required: [true, 'Day label (e.g. "Day 1") is required'],
       trim:     true,
     },
     focusArea: {
@@ -40,22 +46,52 @@ const WeeklyRoadmapSchema = new mongoose.Schema(
       required: [true, 'userId is required'],
       index:    true,
     },
+
+    // ── Generation mode ──────────────────────────────────────────────────────
+    mode: {
+      type:    String,
+      enum:    ['profile', 'company', 'topic'],
+      default: 'profile',
+    },
+
+    // ── Mode-specific metadata (all optional) ────────────────────────────────
+
+    /** "company" mode: the target company the student is preparing for */
+    targetCompany: {
+      type: String,
+      trim: true,
+    },
+
+    /** "company" mode: interview / test date driving the day-count calculation */
+    testDate: {
+      type: Date,
+    },
+
+    /** "topic" mode: the free-text topic the student wants to drill */
+    customTopic: {
+      type: String,
+      trim: true,
+    },
+
+    // ── Plan window (informational, may span > 7 days) ───────────────────────
     weekStartDate: {
       type:    Date,
       default: Date.now,
     },
     weekEndDate: {
-      type:    Date,
-      default: () => new Date(Date.now() + 7 * 24 * 60 * 60 * 1000), // 7 days from now
+      type: Date,
     },
+
+    // ── Daily items (dynamic length — no fixed-7 constraint) ─────────────────
     items: {
       type:     [RoadmapItemSchema],
       required: [true, 'Roadmap items are required'],
       validate: [
-        (val) => val.length === 7,
-        'Roadmap must contain exactly 7 items (one for each day)',
+        (val) => val.length >= 1,
+        'Roadmap must contain at least 1 item.',
       ],
     },
+
     generatedAt: {
       type:    Date,
       default: Date.now,

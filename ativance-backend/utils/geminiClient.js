@@ -1,9 +1,17 @@
+const dns = require('node:dns');
+try {
+  dns.setDefaultResultOrder('ipv4first');
+  dns.setServers(['1.1.1.1', '8.8.8.8', '1.0.0.1']);
+} catch (e) {
+  // Ignore if custom DNS not allowed in container
+}
+
 const { GoogleGenerativeAI } = require('@google/generative-ai');
 
 // ── Constants ─────────────────────────────────────────────────────────────────
 const MODEL_NAME          = 'gemini-3.5-flash';
-const TIMEOUT_MS          = 30_000;   // 30 s — abort if Gemini stalls
-const RATE_LIMIT_DELAY_MS = 8_000;    // wait 8 s before retrying a 429
+const TIMEOUT_MS          = 45_000;   // 45 s — generous timeout for large resume analyses
+const RATE_LIMIT_DELAY_MS = 6_000;    // wait 6 s before retrying a 429
 const MAX_RATE_RETRIES    = 2;        // retry at most twice on rate limit
 
 // ── Singleton model ───────────────────────────────────────────────────────────
@@ -43,8 +51,7 @@ const classifyError = (err) => {
   if (err.name === 'AbortError' || msg.includes('timed out') || msg.includes('timeout') || msg.includes('aborted')) {
     return 'TIMEOUT';
   }
-  if (msg.includes('fetch') || msg.includes('network') || msg.includes('econnrefused') ||
-      msg.includes('enotfound') || msg.includes('socket')) {
+  if (msg.includes('econnrefused') || msg.includes('enotfound') || msg.includes('socket') || msg.includes('getaddrinfo')) {
     return 'NETWORK';
   }
   return 'AI_ERROR';
@@ -63,7 +70,7 @@ const errorResponse = (tag) => {
     case 'TIMEOUT':
       return { status: 504, message: 'The AI took too long to respond. Please try again.' };
     case 'NETWORK':
-      return { status: 502, message: 'Could not reach the AI service. Check your connection and try again.' };
+      return { status: 502, message: 'Network connection to Google AI timed out. Please try again.' };
     default:
       return { status: 502, message: 'AI service is temporarily unavailable. Please try again shortly.' };
   }

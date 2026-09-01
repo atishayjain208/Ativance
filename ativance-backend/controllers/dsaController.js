@@ -164,14 +164,24 @@ const analyzeWeakTopics = async (req, res) => {
   const tryParseProblems = (raw) => {
     const parsed = JSON.parse(stripFences(raw));
     if (!Array.isArray(parsed)) throw new Error('Response is not a JSON array.');
-    // Validate each item has the required fields
-    return parsed.filter(
-      (p) =>
-        p &&
-        typeof p.title      === 'string' && p.title.trim() &&
-        typeof p.difficulty === 'string' && ['Easy', 'Medium', 'Hard'].includes(p.difficulty) &&
-        typeof p.topic      === 'string' && p.topic.trim()
-    );
+    // Validate required fields; slug is optional (fall back to '')
+    return parsed
+      .filter(
+        (p) =>
+          p &&
+          typeof p.title      === 'string' && p.title.trim() &&
+          typeof p.difficulty === 'string' && ['Easy', 'Medium', 'Hard'].includes(p.difficulty) &&
+          typeof p.topic      === 'string' && p.topic.trim()
+      )
+      .map((p) => ({
+        title:      p.title.trim(),
+        difficulty: p.difficulty,
+        topic:      p.topic.trim(),
+        // Normalise slug: lowercase-hyphenated; drop if clearly not a slug
+        slug: (typeof p.slug === 'string' && p.slug.trim())
+          ? p.slug.trim().toLowerCase()
+          : '',
+      }));
   };
 
   const fetchProblemsForTopic = async ({ topic, count, threshold }) => {
@@ -192,7 +202,7 @@ const analyzeWeakTopics = async (req, res) => {
       const retryPrompt =
         prompt +
         '\n\nIMPORTANT: Your previous response could not be parsed as a JSON array. ' +
-        'Return ONLY a raw JSON array of { title, difficulty, topic } objects. No other text.';
+        'Return ONLY a raw JSON array of { title, difficulty, topic, slug } objects. No other text.';
       try {
         const retryRaw = await generateContent(retryPrompt, { skipRetry: true });
         return tryParseProblems(retryRaw);

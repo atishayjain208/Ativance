@@ -15,14 +15,14 @@ const TOPICS = [
 ];
 
 const DIFF_META = {
-  easy:   { label: 'Easy',   colour: '#34d399', bg: 'bg-emerald-500/10', border: 'border-emerald-500/20', text: 'text-emerald-400' },
-  medium: { label: 'Medium', colour: '#fbbf24', bg: 'bg-amber-500/10',   border: 'border-amber-500/20',   text: 'text-amber-400'   },
-  hard:   { label: 'Hard',   colour: '#f87171', bg: 'bg-red-500/10',     border: 'border-red-500/20',     text: 'text-red-400'     },
+  easy:   { label: 'Easy',   colour: '#10B981', bg: 'bg-emerald-50/60', border: 'border-emerald-200/80', text: 'text-emerald-700', barBg: '#10B981' },
+  medium: { label: 'Medium', colour: '#F59E0B', bg: 'bg-amber-50/60',   border: 'border-amber-200/80',   text: 'text-amber-700',   barBg: '#F59E0B' },
+  hard:   { label: 'Hard',   colour: '#EF4444', bg: 'bg-rose-50/60',    border: 'border-rose-200/80',    text: 'text-rose-700',    barBg: '#EF4444' },
 };
 
 const BAR_PALETTE = [
-  '#818cf8','#34d399','#fbbf24','#f87171','#38bdf8',
-  '#a78bfa','#fb923c','#4ade80','#e879f9','#67e8f9',
+  '#4F46E5', '#10B981', '#F59E0B', '#EF4444', '#0EA5E9',
+  '#8B5CF6', '#F97316', '#14B8A6', '#EC4899', '#06B6D4',
 ];
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -42,13 +42,13 @@ function DiffCard({ tier, count, total }) {
   const pct = total > 0 ? Math.round((count / total) * 100) : 0;
 
   return (
-    <div className={`flex-1 min-w-[120px] rounded-xl border ${m.bg} ${m.border} p-4 flex flex-col gap-1`}>
-      <p className={`text-xs font-semibold uppercase tracking-wider ${m.text}`}>{m.label}</p>
-      <p className="text-3xl font-extrabold text-white">{count}</p>
-      <div className="h-1.5 w-full rounded-full bg-slate-800 overflow-hidden mt-1">
-        <div className="h-full rounded-full transition-all duration-700" style={{ width: `${pct}%`, background: m.colour }} />
+    <div className={`flex-1 min-w-[120px] rounded-2xl border ${m.bg} ${m.border} p-4 flex flex-col gap-1.5 shadow-soft`}>
+      <p className={`text-xs font-bold uppercase tracking-wider ${m.text}`}>{m.label}</p>
+      <p className="text-2xl sm:text-3xl font-extrabold text-zinc-900 tracking-tight">{count}</p>
+      <div className="h-2 w-full rounded-full bg-zinc-200/80 overflow-hidden mt-1">
+        <div className="h-full rounded-full transition-all duration-700" style={{ width: `${pct}%`, background: m.barBg }} />
       </div>
-      <p className="text-[10px] text-slate-500">{pct}% of total</p>
+      <p className="text-[11px] font-medium text-zinc-500">{pct}% of total problems</p>
     </div>
   );
 }
@@ -59,9 +59,9 @@ function DiffCard({ tier, count, total }) {
 function TopicTooltip({ active, payload }) {
   if (!active || !payload?.length) return null;
   return (
-    <div className="bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-xs text-slate-200 shadow-lg">
-      <p className="font-semibold">{payload[0].payload.topic}</p>
-      <p className="text-slate-400">{payload[0].value} solved</p>
+    <div className="bg-white border border-[#E5E5E0] rounded-xl px-3 py-2 text-xs text-zinc-900 shadow-card">
+      <p className="font-bold">{payload[0].payload.topic}</p>
+      <p className="text-zinc-500">{payload[0].value} problems solved</p>
     </div>
   );
 }
@@ -71,12 +71,12 @@ function TopicTooltip({ active, payload }) {
 // ─────────────────────────────────────────────────────────────────────────────
 function DiffBadge({ difficulty }) {
   const styles = {
-    Easy:   'bg-emerald-500/15 text-emerald-400 border-emerald-500/25',
-    Medium: 'bg-amber-500/15  text-amber-400   border-amber-500/25',
-    Hard:   'bg-red-500/15    text-red-400     border-red-500/25',
+    Easy:   'bg-emerald-50 text-emerald-700 border-emerald-200/80',
+    Medium: 'bg-amber-50   text-amber-700   border-amber-200/80',
+    Hard:   'bg-rose-50    text-rose-700    border-rose-200/80',
   };
   return (
-    <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-full border ${styles[difficulty] ?? 'bg-slate-700 text-slate-400'}`}>
+    <span className={`text-[10px] font-bold px-2.5 py-0.5 rounded-full border ${styles[difficulty] ?? 'bg-zinc-100 text-zinc-600 border-zinc-200'}`}>
       {difficulty}
     </span>
   );
@@ -85,23 +85,43 @@ function DiffBadge({ difficulty }) {
 // ─────────────────────────────────────────────────────────────────────────────
 // Focus area card — one weak topic + its recommended problems
 // ─────────────────────────────────────────────────────────────────────────────
+
+/**
+ * Returns the best link href for a problem:
+ *   1. If a non-empty slug exists → canonical LeetCode problem URL
+ *   2. Otherwise → LeetCode problem-set search URL
+ */
+function problemHref(p) {
+  if (p.slug && p.slug.trim()) {
+    return `https://leetcode.com/problems/${p.slug.trim()}/`;
+  }
+  return `https://leetcode.com/problemset/?search=${encodeURIComponent(p.title)}`;
+}
+
+/**
+ * Returns a search-based fallback URL (used via onerror / manual fallback).
+ */
+function problemFallback(title) {
+  return `https://leetcode.com/problemset/?search=${encodeURIComponent(title)}`;
+}
+
 function FocusCard({ detail, problems }) {
   const [open, setOpen] = useState(true);
   const pct = Math.round((detail.count / detail.threshold) * 100);
 
   return (
-    <div className="bg-slate-800/60 border border-slate-700/50 rounded-xl overflow-hidden">
+    <div className="bg-white border border-[#E5E5E0] rounded-2xl overflow-hidden shadow-soft transition-all">
       {/* Header */}
       <button
         onClick={() => setOpen((o) => !o)}
-        className="w-full flex items-center justify-between gap-3 px-5 py-4 hover:bg-slate-800 transition-colors"
+        className="w-full flex items-center justify-between gap-3 px-5 py-4 hover:bg-zinc-50/70 transition-colors"
       >
         <div className="flex items-center gap-3 min-w-0">
-          <span className="text-red-400 text-lg">⚠️</span>
+          <span className="text-rose-500 text-lg">⚠️</span>
           <div className="text-left min-w-0">
-            <p className="font-semibold text-white text-sm">{detail.topic}</p>
-            <p className="text-xs text-slate-400">
-              {detail.count}/{detail.threshold} solved · {detail.gap} to go
+            <p className="font-bold text-zinc-900 text-sm">{detail.topic}</p>
+            <p className="text-xs text-zinc-500 mt-0.5">
+              {detail.count}/{detail.threshold} solved · {detail.gap} more needed for solid level
             </p>
           </div>
         </div>
@@ -109,20 +129,20 @@ function FocusCard({ detail, problems }) {
           {/* Mini progress ring */}
           <div className="relative h-9 w-9">
             <svg viewBox="0 0 36 36" className="rotate-[-90deg] h-9 w-9">
-              <circle cx="18" cy="18" r="14" fill="none" stroke="#1e293b" strokeWidth="4" />
+              <circle cx="18" cy="18" r="14" fill="none" stroke="#E5E5E0" strokeWidth="4" />
               <circle
                 cx="18" cy="18" r="14" fill="none"
-                stroke="#f87171" strokeWidth="4" strokeLinecap="round"
+                stroke="#EF4444" strokeWidth="4" strokeLinecap="round"
                 strokeDasharray={`${(pct / 100) * 87.96} 87.96`}
               />
             </svg>
-            <span className="absolute inset-0 flex items-center justify-center text-[9px] font-bold text-white">
+            <span className="absolute inset-0 flex items-center justify-center text-[9px] font-bold text-zinc-900">
               {pct}%
             </span>
           </div>
           <svg
             xmlns="http://www.w3.org/2000/svg"
-            className={`h-4 w-4 text-slate-400 transition-transform duration-200 ${open ? 'rotate-180' : ''}`}
+            className={`h-4 w-4 text-zinc-400 transition-transform duration-200 ${open ? 'rotate-180' : ''}`}
             fill="none" viewBox="0 0 24 24" stroke="currentColor"
           >
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
@@ -132,15 +152,22 @@ function FocusCard({ detail, problems }) {
 
       {/* Problem list */}
       {open && (
-        <div className="border-t border-slate-700/50 px-5 py-4 space-y-2">
+        <div className="border-t border-zinc-100 px-5 py-4 space-y-2 bg-zinc-50/40">
           {problems.length === 0 ? (
-            <p className="text-sm text-slate-500">No recommendations available yet.</p>
+            <p className="text-xs text-zinc-500">No practice problem recommendations available yet.</p>
           ) : (
             <ul className="space-y-2">
               {problems.map((p, i) => (
-                <li key={i} className="flex items-center gap-3">
-                  <span className="text-slate-600 text-xs w-5 shrink-0 text-right">{i + 1}.</span>
-                  <p className="text-sm text-slate-300 flex-1 leading-snug">{p.title}</p>
+                <li key={i} className="flex items-center gap-3 p-2 rounded-xl bg-white border border-zinc-200/60 shadow-soft">
+                  <span className="text-zinc-400 text-xs w-5 shrink-0 text-right font-medium">{i + 1}.</span>
+                  <a
+                    href={problemHref(p)}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-xs sm:text-sm font-semibold text-indigo-700 hover:text-indigo-900 hover:underline flex-1 leading-snug transition-colors"
+                  >
+                    {p.title}
+                  </a>
                   <DiffBadge difficulty={p.difficulty} />
                 </li>
               ))}
@@ -151,6 +178,7 @@ function FocusCard({ detail, problems }) {
     </div>
   );
 }
+
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Update form
@@ -190,19 +218,19 @@ function UpdateForm({ initial, onSaved }) {
   return (
     <form onSubmit={handleSubmit} className="space-y-6">
       {/* Difficulty counts */}
-      <div>
-        <p className="text-xs font-semibold uppercase tracking-wider text-slate-400 mb-3">Solved by difficulty</p>
+      <div className="space-y-2">
+        <p className="text-xs font-bold uppercase tracking-wider text-zinc-700">Solved by difficulty</p>
         <div className="grid grid-cols-3 gap-3">
           {['easy', 'medium', 'hard'].map((tier) => {
             const m = DIFF_META[tier];
             return (
-              <div key={tier} className={`rounded-xl border ${m.bg} ${m.border} p-3 space-y-1.5`}>
-                <label className={`block text-xs font-semibold ${m.text}`}>{m.label}</label>
+              <div key={tier} className={`rounded-2xl border ${m.bg} ${m.border} p-3.5 space-y-1.5 shadow-soft`}>
+                <label className={`block text-xs font-bold uppercase tracking-wider ${m.text}`}>{m.label}</label>
                 <input
                   type="number" min="0"
                   value={diff[tier]}
                   onChange={(e) => setDiffVal(tier, e.target.value)}
-                  className="w-full bg-slate-900/60 border border-slate-700 rounded-lg px-2 py-1.5 text-sm text-white text-center focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                  className="w-full bg-white border border-zinc-200 rounded-xl px-2.5 py-1.5 text-sm text-zinc-900 font-bold text-center focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-600 shadow-soft"
                 />
               </div>
             );
@@ -211,17 +239,17 @@ function UpdateForm({ initial, onSaved }) {
       </div>
 
       {/* Topic counts */}
-      <div>
-        <p className="text-xs font-semibold uppercase tracking-wider text-slate-400 mb-3">Solved by topic</p>
+      <div className="space-y-2">
+        <p className="text-xs font-bold uppercase tracking-wider text-zinc-700">Solved by topic category</p>
         <div className="grid grid-cols-2 sm:grid-cols-3 gap-2.5">
           {TOPICS.map((topic) => (
-            <div key={topic} className="bg-slate-800/60 border border-slate-700/50 rounded-lg px-3 py-2 flex items-center justify-between gap-2">
-              <label className="text-xs text-slate-300 truncate flex-1">{topic}</label>
+            <div key={topic} className="bg-white border border-zinc-200/80 rounded-xl px-3 py-2 flex items-center justify-between gap-2 shadow-soft">
+              <label className="text-xs font-medium text-zinc-700 truncate flex-1">{topic}</label>
               <input
                 type="number" min="0"
                 value={topics[topic] ?? 0}
                 onChange={(e) => setTopic(topic, e.target.value)}
-                className="w-14 bg-slate-900 border border-slate-700 rounded px-1.5 py-1 text-xs text-white text-center focus:outline-none focus:ring-1 focus:ring-indigo-500"
+                className="w-14 bg-zinc-50 border border-zinc-200 rounded-lg px-2 py-1 text-xs text-zinc-900 font-bold text-center focus:outline-none focus:ring-1 focus:ring-indigo-500"
               />
             </div>
           ))}
@@ -229,12 +257,12 @@ function UpdateForm({ initial, onSaved }) {
       </div>
 
       {error && (
-        <p className="text-sm text-red-400 bg-red-500/10 border border-red-500/30 rounded-lg px-3 py-2">{error}</p>
+        <p className="text-xs font-medium text-rose-700 bg-rose-50 border border-rose-200/80 rounded-xl px-3.5 py-2.5">{error}</p>
       )}
 
       <button
         type="submit" disabled={saving}
-        className="w-full py-2.5 bg-indigo-600 hover:bg-indigo-500 disabled:opacity-50 text-white text-sm font-semibold rounded-xl transition-colors flex items-center justify-center gap-2"
+        className="w-full py-3 bg-[#171717] hover:bg-black disabled:opacity-50 text-white text-sm font-semibold rounded-xl transition shadow-sm flex items-center justify-center gap-2"
       >
         {saving ? (
           <>
@@ -242,11 +270,11 @@ function UpdateForm({ initial, onSaved }) {
               <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/>
               <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z"/>
             </svg>
-            Saving…
+            <span>Saving changes…</span>
           </>
         ) : saved ? (
-          <span className="text-emerald-400">✓ Saved!</span>
-        ) : 'Save Progress'}
+          <span className="text-emerald-400">✓ Progress saved successfully!</span>
+        ) : 'Save DSA Counts'}
       </button>
     </form>
   );
@@ -304,7 +332,7 @@ export default function DSACoach() {
           (data.progress.weakTopics || []).map((t) => ({
             topic:     t,
             count:     topicMap[t] ?? 0,
-            threshold: 8, // approximation for display; real thresholds come from /analyze
+            threshold: 8, // baseline approximation for display
             gap:       Math.max(0, 8 - (topicMap[t] ?? 0)),
           }))
         );
@@ -377,11 +405,11 @@ export default function DSACoach() {
     return (
       <div className="flex items-center justify-center min-h-[40vh]">
         <div className="flex flex-col items-center gap-3">
-          <svg className="animate-spin h-8 w-8 text-indigo-400" fill="none" viewBox="0 0 24 24">
+          <svg className="animate-spin h-8 w-8 text-indigo-600" fill="none" viewBox="0 0 24 24">
             <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/>
             <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z"/>
           </svg>
-          <p className="text-sm text-slate-400">Loading your progress…</p>
+          <p className="text-xs font-semibold text-zinc-500">Loading your DSA coach profile…</p>
         </div>
       </div>
     );
@@ -389,36 +417,38 @@ export default function DSACoach() {
 
   if (fetchError) {
     return (
-      <div className="max-w-xl mx-auto mt-10 px-4 py-3 rounded-xl bg-red-500/10 border border-red-500/30 text-red-400 text-sm">
+      <div className="max-w-xl mx-auto mt-10 px-4 py-3 rounded-2xl bg-rose-50 border border-rose-200/80 text-rose-700 text-xs font-medium shadow-soft">
         {fetchError}
-        <button onClick={fetchProgress} className="ml-3 underline text-indigo-400">Retry</button>
+        <button onClick={fetchProgress} className="ml-3 underline font-bold text-indigo-600">Retry</button>
       </div>
     );
   }
 
   return (
-    <div className="max-w-4xl mx-auto space-y-6">
+    <div className="max-w-4xl mx-auto space-y-6 animate-fadeIn">
       {/* ── Header ── */}
       <div className="flex items-start justify-between gap-4 flex-wrap">
         <div>
-          <h1 className="text-2xl font-bold text-white">DSA Coach</h1>
-          <p className="text-slate-400 text-sm mt-1">
-            Track your problem-solving progress and get AI-powered focus recommendations.
+          <h1 className="text-2xl sm:text-3xl font-bold text-zinc-900 tracking-tight">DSA Coach</h1>
+          <p className="text-zinc-500 text-xs sm:text-sm mt-1">
+            Track problem-solving milestones, identify topic gaps, and practice AI-curated question sets.
           </p>
         </div>
         <button
           onClick={() => setShowForm((s) => !s)}
-          className="shrink-0 px-4 py-2 text-sm font-semibold rounded-xl border border-indigo-500/40 text-indigo-400 hover:bg-indigo-500/10 transition-colors"
+          className="shrink-0 px-4 py-2 text-xs font-semibold rounded-xl border border-[#E5E5E0] bg-white hover:bg-zinc-50 text-zinc-700 transition-all shadow-soft"
         >
-          {showForm ? '✕ Close Form' : '✏️ Update Progress'}
+          {showForm ? '✕ Close Panel' : '✏️ Update Progress'}
         </button>
       </div>
 
       {/* ── No data banner ── */}
       {!progress && (
-        <div className="bg-indigo-500/10 border border-indigo-500/25 rounded-2xl px-5 py-4 text-sm text-indigo-300 flex items-start gap-3">
+        <div className="bg-indigo-50 border border-indigo-200/80 rounded-2xl px-5 py-4 text-xs sm:text-sm text-indigo-900 flex items-start gap-3 shadow-soft">
           <span className="text-xl mt-0.5">💡</span>
-          <p>You haven't logged any progress yet. Use the <strong>Update Progress</strong> form to enter your solved counts.</p>
+          <p>
+            You have not logged any DSA progress yet. Sync your <strong>LeetCode username</strong> or enter your counts manually to begin.
+          </p>
         </div>
       )}
 
@@ -426,17 +456,17 @@ export default function DSACoach() {
       {showForm && (
         <div className="space-y-4 animate-fadeIn">
           {/* LeetCode Sync Bar */}
-          <div className="bg-slate-900 border border-slate-800 rounded-2xl p-6 space-y-4">
+          <div className="bg-white border border-[#E5E5E0] rounded-2xl p-6 space-y-4 shadow-soft">
             <div>
-              <h3 className="text-sm font-semibold text-slate-300 uppercase tracking-wider">🔗 LeetCode Sync (Automatic)</h3>
-              <p className="text-xs text-slate-500 mt-1">
+              <h3 className="text-xs font-bold text-zinc-900 uppercase tracking-wider">🔗 Auto-Sync from LeetCode</h3>
+              <p className="text-xs text-zinc-500 mt-1">
                 Import problem-solving counts directly from your public LeetCode profile.
               </p>
             </div>
 
             <form onSubmit={handleSync} className="flex gap-3 max-w-md items-end">
               <div className="flex-1 space-y-1.5">
-                <label htmlFor="leetcode-username" className="block text-xs font-semibold text-slate-400">LeetCode Username</label>
+                <label htmlFor="leetcode-username" className="block text-xs font-semibold text-zinc-700 uppercase tracking-wider">LeetCode Username</label>
                 <input
                   id="leetcode-username"
                   type="text"
@@ -447,13 +477,13 @@ export default function DSACoach() {
                     setSyncSuccess('');
                   }}
                   placeholder="e.g. lee215"
-                  className="w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:ring-1 focus:ring-indigo-500 placeholder-slate-600"
+                  className="w-full bg-white border border-[#E5E5E0] rounded-xl px-3.5 py-2 text-sm text-zinc-900 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-600 placeholder:text-zinc-400 shadow-soft"
                 />
               </div>
               <button
                 type="submit"
                 disabled={syncing || !leetcodeUsername.trim()}
-                className="px-4 py-2 bg-indigo-600 hover:bg-indigo-500 disabled:opacity-50 text-white text-xs font-semibold rounded-lg transition-colors flex items-center justify-center gap-1.5 h-[38px] min-w-[100px]"
+                className="px-5 py-2.5 bg-[#171717] hover:bg-black disabled:opacity-50 text-white text-xs font-semibold rounded-xl transition duration-150 flex items-center justify-center gap-1.5 h-[40px] min-w-[110px] shadow-sm"
               >
                 {syncing ? (
                   <>
@@ -461,38 +491,38 @@ export default function DSACoach() {
                       <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/>
                       <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z"/>
                     </svg>
-                    Syncing…
+                    <span>Syncing…</span>
                   </>
-                ) : 'Sync Stats'}
+                ) : 'Sync Profile'}
               </button>
             </form>
 
             {syncError && (
-              <div className="text-xs text-red-400 bg-red-500/10 border border-red-500/30 px-3 py-2.5 rounded-lg space-y-1">
+              <div className="text-xs text-rose-700 bg-rose-50 border border-rose-200/80 px-4 py-3 rounded-xl space-y-1.5">
                 <p>{syncError}</p>
                 <button
                   type="button"
                   onClick={() => {
                     document.getElementById('manual-entry-section')?.scrollIntoView({ behavior: 'smooth' });
                   }}
-                  className="text-indigo-400 hover:text-indigo-300 font-semibold underline block text-left"
+                  className="text-indigo-600 hover:text-indigo-800 font-bold underline block text-left"
                 >
                   Enter stats manually instead →
                 </button>
               </div>
             )}
             {syncSuccess && (
-              <p className="text-xs text-emerald-400 bg-emerald-500/10 border border-emerald-500/30 px-3 py-2 rounded-lg">{syncSuccess}</p>
+              <p className="text-xs font-semibold text-emerald-800 bg-emerald-50 border border-emerald-200/80 px-4 py-3 rounded-xl">{syncSuccess}</p>
             )}
-            
-            <p className="text-[10px] text-slate-600 leading-relaxed">
+
+            <p className="text-[11px] text-zinc-400 leading-relaxed">
               ⚠️ LeetCode stats are fetched via an unofficial endpoint. Syncing depends on LeetCode's public servers and profile privacy settings.
             </p>
           </div>
 
           {/* Manual Entry Form */}
-          <div id="manual-entry-section" className="bg-slate-900 border border-slate-800 rounded-2xl p-6">
-            <h2 className="text-sm font-semibold text-slate-300 uppercase tracking-wider mb-5">✏️ Manual Entry</h2>
+          <div id="manual-entry-section" className="bg-white border border-[#E5E5E0] rounded-2xl p-6 shadow-soft space-y-4">
+            <h2 className="text-xs font-bold text-zinc-900 uppercase tracking-wider">✏️ Manual Entry Fallback</h2>
             <UpdateForm
               initial={{ diff: { easy: diff.easy, medium: diff.medium, hard: diff.hard }, topics: initTopics }}
               onSaved={handleSaved}
@@ -504,23 +534,23 @@ export default function DSACoach() {
       {progress && (
         <>
           {/* ── Difficulty stat cards ── */}
-          <div className="bg-slate-900 border border-slate-800 rounded-2xl p-5 space-y-4">
-            <div className="flex items-center justify-between flex-wrap gap-2">
+          <div className="bg-white border border-[#E5E5E0] rounded-2xl p-6 space-y-4 shadow-soft">
+            <div className="flex items-center justify-between flex-wrap gap-2 pb-2 border-b border-zinc-100">
               <div className="flex items-center gap-3">
-                <h2 className="text-sm font-semibold text-slate-300 uppercase tracking-wider">📊 Total Solved</h2>
+                <h2 className="text-xs font-bold text-zinc-900 uppercase tracking-wider">Total Questions Solved</h2>
                 {progress?.dataSource === 'leetcode-auto' ? (
-                  <span className="text-[10px] font-semibold text-indigo-400 bg-indigo-500/10 border border-indigo-500/25 rounded-full px-2 py-0.5">
+                  <span className="text-[10px] font-bold text-indigo-700 bg-indigo-50 border border-indigo-200/80 rounded-full px-2.5 py-0.5">
                     Auto-synced from LeetCode ({progress?.leetcodeUsername || 'profile'})
                   </span>
                 ) : (
-                  <span className="text-[10px] font-semibold text-slate-400 bg-slate-800 border border-slate-700 rounded-full px-2 py-0.5">
+                  <span className="text-[10px] font-semibold text-zinc-600 bg-zinc-100 border border-zinc-200 rounded-full px-2.5 py-0.5">
                     Manually Entered
                   </span>
                 )}
               </div>
-              <span className="text-2xl font-extrabold text-white">{totalSolved}</span>
+              <span className="text-2xl font-black text-zinc-900 tracking-tight">{totalSolved}</span>
             </div>
-            <div className="flex gap-3 flex-wrap">
+            <div className="flex gap-3.5 flex-wrap">
               {['easy', 'medium', 'hard'].map((tier) => (
                 <DiffCard key={tier} tier={tier} count={diff[tier] ?? 0} total={totalSolved} />
               ))}
@@ -529,21 +559,21 @@ export default function DSACoach() {
 
           {/* ── Topic bar chart ── */}
           {topicChartData.length > 0 && (
-            <div className="bg-slate-900 border border-slate-800 rounded-2xl p-5 space-y-4">
-              <h2 className="text-sm font-semibold text-slate-300 uppercase tracking-wider">📈 Topic-wise Solved</h2>
+            <div className="bg-white border border-[#E5E5E0] rounded-2xl p-6 space-y-4 shadow-soft">
+              <h2 className="text-xs font-bold text-zinc-900 uppercase tracking-wider">Topic-wise Distribution</h2>
               <ResponsiveContainer width="100%" height={Math.max(200, topicChartData.length * 36)}>
                 <BarChart data={topicChartData} layout="vertical" margin={{ left: 8, right: 32, top: 4, bottom: 4 }}>
                   <XAxis
                     type="number"
-                    tick={{ fill: '#94a3b8', fontSize: 11 }}
-                    axisLine={false} tickLine={false}
+                    tick={{ fill: '#71717A', fontSize: 11 }}
+                    axisLine={{ stroke: '#E5E5E0' }} tickLine={false}
                   />
                   <YAxis
                     type="category" dataKey="topic" width={120}
-                    tick={{ fill: '#cbd5e1', fontSize: 12 }}
-                    axisLine={false} tickLine={false}
+                    tick={{ fill: '#27272A', fontSize: 12, fontWeight: 500 }}
+                    axisLine={{ stroke: '#E5E5E0' }} tickLine={false}
                   />
-                  <Tooltip content={<TopicTooltip />} cursor={{ fill: '#1e293b' }} />
+                  <Tooltip content={<TopicTooltip />} cursor={{ fill: '#F4F4F5' }} />
                   <Bar dataKey="count" radius={[0, 6, 6, 0]}>
                     {topicChartData.map((_, i) => (
                       <Cell key={i} fill={BAR_PALETTE[i % BAR_PALETTE.length]} />
@@ -555,20 +585,20 @@ export default function DSACoach() {
           )}
 
           {/* ── Focus areas section ── */}
-          <div className="bg-slate-900 border border-slate-800 rounded-2xl p-5 space-y-5">
+          <div className="bg-white border border-[#E5E5E0] rounded-2xl p-6 space-y-5 shadow-soft">
             <div className="flex items-start justify-between gap-3 flex-wrap">
               <div>
-                <h2 className="text-sm font-semibold text-slate-300 uppercase tracking-wider">🎯 Focus Areas</h2>
+                <h2 className="text-xs font-bold text-zinc-900 uppercase tracking-wider">🎯 Weak Topics & Focus Areas</h2>
                 {analysisAt && (
-                  <p className="text-[10px] text-slate-600 mt-1">
-                    Last analyzed {new Date(analysisAt).toLocaleString()}
+                  <p className="text-[11px] text-zinc-400 mt-0.5">
+                    Last analyzed on {new Date(analysisAt).toLocaleString()}
                   </p>
                 )}
               </div>
               <button
                 onClick={handleAnalyze}
                 disabled={analyzing}
-                className="shrink-0 flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-500 hover:to-purple-500 disabled:opacity-50 text-white text-xs font-semibold rounded-xl transition-all shadow-lg shadow-indigo-900/30"
+                className="shrink-0 flex items-center gap-2 px-4 py-2 bg-[#171717] hover:bg-black disabled:opacity-50 text-white text-xs font-bold rounded-xl transition duration-150 shadow-sm"
               >
                 {analyzing ? (
                   <>
@@ -576,23 +606,23 @@ export default function DSACoach() {
                       <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/>
                       <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z"/>
                     </svg>
-                    Analyzing…
+                    <span>Detecting weak topics…</span>
                   </>
-                ) : '✨ Run AI Analysis'}
+                ) : '✨ Run AI Weak Topic Detection'}
               </button>
             </div>
 
             {analyzeError && (
-              <div className="text-sm text-red-400 bg-red-500/10 border border-red-500/30 rounded-lg px-3 py-2">
+              <div className="text-xs font-medium text-rose-700 bg-rose-50 border border-rose-200/80 rounded-xl px-4 py-3">
                 {analyzeError}
               </div>
             )}
 
             {!weakDetails.length && !analyzing && (
-              <p className="text-sm text-slate-500">
+              <p className="text-xs text-zinc-500">
                 {analysisAt
-                  ? '🎉 No weak topics — you\'re at or above the baseline on all major topics!'
-                  : 'Hit "Run AI Analysis" to detect weak topics and get personalized problem recommendations.'}
+                  ? '🎉 No weak topics detected — you are at or above the baseline on all major DSA categories!'
+                  : 'Click "Run AI Weak Topic Detection" to evaluate your solved counts against industry interview baselines and get targeted problem recommendations.'}
               </p>
             )}
 

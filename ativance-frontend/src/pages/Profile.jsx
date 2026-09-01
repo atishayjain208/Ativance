@@ -5,8 +5,8 @@ import { getProfile, updateProfile } from '../services/authService';
 
 function SectionCard({ title, children }) {
   return (
-    <div className="bg-slate-900 border border-slate-800 rounded-2xl p-6 space-y-5">
-      <h2 className="text-base font-semibold text-white">{title}</h2>
+    <div className="bg-white border border-[#E5E5E0] rounded-2xl p-6 sm:p-7 space-y-5 shadow-soft">
+      <h2 className="text-sm font-bold text-zinc-900 uppercase tracking-wider">{title}</h2>
       {children}
     </div>
   );
@@ -15,14 +15,14 @@ function SectionCard({ title, children }) {
 function Field({ label, children }) {
   return (
     <div className="space-y-1.5">
-      <label className="block text-sm font-medium text-slate-300">{label}</label>
+      <label className="block text-xs font-bold uppercase tracking-wider text-zinc-700">{label}</label>
       {children}
     </div>
   );
 }
 
 const inputCls =
-  'w-full px-4 py-2.5 rounded-lg bg-slate-800 border border-slate-700 text-slate-100 placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition text-sm';
+  'w-full px-4 py-2.5 rounded-xl bg-white border border-[#E5E5E0] text-zinc-900 placeholder:text-zinc-400 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-600 transition text-sm shadow-soft';
 
 // ── TagInput: renders a tag list with add/remove ──────────────────────────────
 function TagInput({ tags, onChange, placeholder }) {
@@ -53,19 +53,19 @@ function TagInput({ tags, onChange, placeholder }) {
 
   return (
     <div
-      className="flex flex-wrap gap-2 p-2.5 rounded-lg bg-slate-800 border border-slate-700 focus-within:ring-2 focus-within:ring-indigo-500 cursor-text min-h-[44px]"
+      className="flex flex-wrap gap-2 p-2.5 rounded-xl bg-white border border-[#E5E5E0] focus-within:ring-2 focus-within:ring-indigo-500/20 focus-within:border-indigo-600 cursor-text min-h-[46px] shadow-soft transition"
       onClick={() => inputRef.current?.focus()}
     >
       {tags.map((tag) => (
         <span
           key={tag}
-          className="flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-indigo-600/20 border border-indigo-500/30 text-indigo-300 text-xs font-medium"
+          className="flex items-center gap-1.5 px-3 py-1 rounded-lg bg-indigo-50 border border-indigo-100 text-indigo-700 text-xs font-semibold shadow-sm"
         >
           {tag}
           <button
             type="button"
             onClick={() => removeTag(tag)}
-            className="text-indigo-400 hover:text-red-400 transition-colors leading-none"
+            className="text-indigo-400 hover:text-rose-600 transition-colors leading-none ml-0.5"
             aria-label={`Remove ${tag}`}
           >
             ×
@@ -79,7 +79,7 @@ function TagInput({ tags, onChange, placeholder }) {
         onKeyDown={handleKeyDown}
         onBlur={addTag}
         placeholder={tags.length === 0 ? placeholder : ''}
-        className="flex-1 min-w-[120px] bg-transparent text-sm text-slate-100 placeholder-slate-500 outline-none"
+        className="flex-1 min-w-[130px] bg-transparent text-sm text-zinc-900 placeholder:text-zinc-400 outline-none"
       />
     </div>
   );
@@ -167,39 +167,39 @@ export default function Profile() {
   if (loading) {
     return (
       <div className="flex items-center justify-center h-64">
-        <div className="w-8 h-8 border-4 border-indigo-500 border-t-transparent rounded-full animate-spin" />
+        <div className="w-8 h-8 border-4 border-indigo-600 border-t-transparent rounded-full animate-spin" />
       </div>
     );
   }
 
   return (
-    <div className="max-w-2xl mx-auto space-y-6">
+    <div className="max-w-2xl mx-auto space-y-6 animate-fadeIn">
       {/* Page header */}
       <div>
-        <h1 className="text-2xl font-bold text-white">My Profile</h1>
-        <p className="text-slate-400 text-sm mt-1">
-          Keep your profile up to date so Ativance can give you the best recommendations.
+        <h1 className="text-2xl sm:text-3xl font-bold text-zinc-900 tracking-tight">Profile & Career Goals</h1>
+        <p className="text-zinc-500 text-xs sm:text-sm mt-1">
+          Keep your profile and target companies up to date to personalize your AI roadmap and mock interviews.
         </p>
       </div>
 
       {/* Feedback banners */}
       {error && (
-        <div className="px-4 py-3 rounded-lg bg-red-500/10 border border-red-500/30 text-red-400 text-sm">
+        <div className="px-4 py-3 rounded-xl bg-rose-50 border border-rose-200/80 text-rose-700 text-xs font-medium">
           {error}
         </div>
       )}
       {success && (
-        <div className="px-4 py-3 rounded-lg bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 text-sm flex items-center gap-2">
-          <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+        <div className="px-4 py-3 rounded-xl bg-emerald-50 border border-emerald-200/80 text-emerald-800 text-xs font-semibold flex items-center gap-2">
+          <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 text-emerald-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
           </svg>
-          {success}
+          <span>{success}</span>
         </div>
       )}
 
       <form onSubmit={handleSubmit} className="space-y-5">
         {/* Basic info */}
-        <SectionCard title="Basic Info">
+        <SectionCard title="Basic Information">
           <Field label="Full name">
             <input
               name="name"
@@ -209,7 +209,7 @@ export default function Profile() {
               className={inputCls}
             />
           </Field>
-          <Field label="Education">
+          <Field label="Education / University">
             <input
               name="education"
               value={form.education}
@@ -218,39 +218,39 @@ export default function Profile() {
               className={inputCls}
             />
           </Field>
-          <Field label="Career goals">
+          <Field label="Career Goals & Aspirations">
             <textarea
               name="goals"
               value={form.goals}
               onChange={handleChange}
               rows={3}
-              placeholder="e.g. Land a SWE role at a product company by mid-2026."
+              placeholder="e.g. Target Software Engineer roles at tier-1 product companies by mid-2026."
               className={`${inputCls} resize-none`}
             />
           </Field>
         </SectionCard>
 
         {/* Skills */}
-        <SectionCard title="Skills">
+        <SectionCard title="Skill Keywords">
           <Field label="Skills (press Enter or comma to add)">
             <TagInput
               tags={form.skills}
               onChange={setField('skills')}
-              placeholder="e.g. React, Python, SQL…"
+              placeholder="e.g. React, Python, Distributed Systems, SQL…"
             />
           </Field>
         </SectionCard>
 
         {/* Target companies */}
-        <SectionCard title="Job Search">
-          <Field label="Target companies (press Enter or comma to add)">
+        <SectionCard title="Target Companies & Availability">
+          <Field label="Dream Companies (press Enter or comma to add)">
             <TagInput
               tags={form.targetCompanies}
               onChange={setField('targetCompanies')}
-              placeholder="e.g. Google, Stripe, Notion…"
+              placeholder="e.g. Google, Stripe, Microsoft, Notion…"
             />
           </Field>
-          <Field label="Available study hours per week">
+          <Field label="Available Study Hours Per Week">
             <div className="relative">
               <input
                 name="availableStudyHours"
@@ -260,23 +260,33 @@ export default function Profile() {
                 value={form.availableStudyHours}
                 onChange={handleChange}
                 placeholder="e.g. 15"
-                className={`${inputCls} pr-16`}
+                className={`${inputCls} pr-20`}
               />
-              <span className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-500 text-sm select-none pointer-events-none">
-                hrs / wk
+              <span className="absolute right-4 top-1/2 -translate-y-1/2 text-zinc-400 text-xs font-semibold select-none pointer-events-none">
+                hrs / week
               </span>
             </div>
           </Field>
         </SectionCard>
 
         {/* Save */}
-        <div className="flex justify-end">
+        <div className="flex justify-end pt-2">
           <button
             type="submit"
             disabled={saving}
-            className="px-6 py-2.5 bg-indigo-600 hover:bg-indigo-700 disabled:opacity-60 disabled:cursor-not-allowed text-white text-sm font-semibold rounded-lg transition duration-200"
+            className="px-7 py-3 bg-[#171717] hover:bg-black disabled:opacity-60 disabled:cursor-not-allowed text-white text-xs sm:text-sm font-semibold rounded-xl transition duration-150 shadow-sm flex items-center justify-center gap-2"
           >
-            {saving ? 'Saving…' : 'Save changes'}
+            {saving ? (
+              <>
+                <svg className="animate-spin h-4 w-4 text-white" fill="none" viewBox="0 0 24 24">
+                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/>
+                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z"/>
+                </svg>
+                <span>Saving profile…</span>
+              </>
+            ) : (
+              'Save Profile'
+            )}
           </button>
         </div>
       </form>

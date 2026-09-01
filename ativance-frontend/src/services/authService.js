@@ -122,9 +122,19 @@ export const getRoadmap = async () => {
   return data; // { success, roadmap }
 };
 
-export const generateRoadmap = async () => {
-  const { data } = await API.post('/api/roadmap/generate');
-  return data; // { success, message, roadmap }
+/**
+ * generateRoadmap(payload)
+ *
+ * @param {object} [payload]
+ * @param {'profile'|'company'|'topic'} [payload.mode='profile']
+ * @param {string}  [payload.targetCompany]  company mode
+ * @param {string}  [payload.testDate]       company mode (ISO date string)
+ * @param {string}  [payload.customTopic]    topic mode
+ * @param {number}  [payload.days]           topic mode (optional day count)
+ */
+export const generateRoadmap = async (payload = {}) => {
+  const { data } = await API.post('/api/roadmap/generate', payload);
+  return data; // { success, message, roadmap, meta? }
 };
 
 export const toggleRoadmapDay = async (day) => {

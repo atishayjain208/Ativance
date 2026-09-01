@@ -1,5 +1,13 @@
 require('dotenv').config();
 
+const dns = require('node:dns');
+try {
+  dns.setDefaultResultOrder('ipv4first');
+  dns.setServers(['1.1.1.1', '8.8.8.8', '1.0.0.1']);
+} catch (e) {
+  console.warn('[server] DNS configuration notice:', e.message);
+}
+
 const express = require('express');
 const cors = require('cors');
 const connectDB = require('./config/db');

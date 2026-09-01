@@ -39,6 +39,10 @@ const RecommendedProblemSchema = new mongoose.Schema(
     title:      { type: String, required: true, trim: true },
     difficulty: { type: String, enum: ['Easy', 'Medium', 'Hard'], required: true },
     topic:      { type: String, required: true, trim: true },
+    // LeetCode URL slug — the lowercase-hyphenated identifier used in
+    // https://leetcode.com/problems/{slug}/
+    // Optional: Gemini may not always return a valid slug.
+    slug:       { type: String, trim: true, default: '' },
   },
   { _id: false }
 );

@@ -3,7 +3,18 @@ const DSAProgress   = require('../models/DSAProgress');
 const WeeklyRoadmap = require('../models/WeeklyRoadmap');
 const { buildUserContext }          = require('../utils/userContext');
 const { generateContent }           = require('../utils/geminiClient');
-const { buildWeeklyRoadmapPrompt }  = require('../utils/roadmapPrompt');
+const {
+  buildProfileRoadmapPrompt,
+  buildCompanyRoadmapPrompt,
+  buildTopicRoadmapPrompt,
+} = require('../utils/roadmapPrompt');
+
+// ── Constants ─────────────────────────────────────────────────────────────────
+/** Maximum number of days shown at once for the "company" mode. */
+const MAX_PLAN_DAYS = 30;
+
+/** Minimum days allowed for a company mode plan (guard against same-day dates). */
+const MIN_PLAN_DAYS = 1;
 
 // ── Helper: strip markdown fences (mirrors resume/github controllers) ─────────
 const stripFences = (raw) =>
@@ -12,16 +23,83 @@ const stripFences = (raw) =>
      .replace(/\s*```\s*$/, '')
      .trim();
 
-// ── GET /api/roadmap ──────────────────────────────────────────────────────────
+// ── Helper: parse + validate AI roadmap response ──────────────────────────────
+/**
+ * tryParseRoadmap(raw, expectedDays)
+ *
+ * Parses a raw AI string into a validated array of roadmap items.
+ * `expectedDays` is the target count; we accept ±0 tolerance in strict mode.
+ * On parse failure the caller is expected to retry with a corrective prompt.
+ *
+ * @param {string} raw
+ * @param {number} expectedDays
+ * @returns {Array<{day, focusArea, task, completed}>}
+ */
+const tryParseRoadmap = (raw, expectedDays) => {
+  const parsed = JSON.parse(stripFences(raw));
+  if (!Array.isArray(parsed)) throw new Error('Response is not a JSON array.');
+  if (parsed.length !== expectedDays) {
+    throw new Error(`Expected ${expectedDays} daily items, got ${parsed.length}.`);
+  }
+  return parsed.map((item, idx) => {
+    if (!item.day || !item.focusArea || !item.task) {
+      throw new Error(`Item at index ${idx} is missing required fields.`);
+    }
+    return {
+      day:       String(item.day).trim(),
+      focusArea: String(item.focusArea).trim(),
+      task:      String(item.task).trim(),
+      completed: false,
+    };
+  });
+};
+
+// ── Helper: call Gemini with one automatic retry on parse failure ──────────────
+const generateAndParse = async (prompt, expectedDays, label) => {
+  let rawResponse;
+  try {
+    rawResponse = await generateContent(prompt);
+  } catch (aiErr) {
+    console.error(`[${label}] Gemini failed:`, aiErr.message);
+    const err = new Error(aiErr.message || 'AI service is temporarily unavailable.');
+    err._status = aiErr._status || 502;
+    throw err;
+  }
+
+  try {
+    return tryParseRoadmap(rawResponse, expectedDays);
+  } catch (_firstErr) {
+    console.warn(`[${label}] First parse failed — retrying with stricter prompt.`);
+
+    const retryPrompt =
+      prompt +
+      `\n\nIMPORTANT: Your previous response was invalid. ` +
+      `Return ONLY a raw JSON array containing exactly ${expectedDays} objects matching the schema. ` +
+      'No markdown, no prose, no extra fields.';
+
+    try {
+      const retryRaw = await generateContent(retryPrompt, { skipRetry: true });
+      return tryParseRoadmap(retryRaw, expectedDays);
+    } catch (retryErr) {
+      console.error(`[${label}] Retry also failed to parse:`, retryErr.message);
+      const err = new Error('The AI returned an unreadable roadmap format. Please try again.');
+      err._status = 502;
+      throw err;
+    }
+  }
+};
+
+// ─────────────────────────────────────────────────────────────────────────────
+// GET /api/roadmap
+// ─────────────────────────────────────────────────────────────────────────────
 const getLatestRoadmap = async (req, res) => {
   try {
-    // Find the latest roadmap by weekStartDate descending
     const roadmap = await WeeklyRoadmap.findOne({ userId: req.user.id })
       .sort({ weekStartDate: -1 });
 
     return res.status(200).json({
       success: true,
-      roadmap: roadmap || null, // null if no roadmap generated yet
+      roadmap: roadmap || null,
     });
   } catch (err) {
     console.error('[getLatestRoadmap]', err.message);
@@ -29,10 +107,26 @@ const getLatestRoadmap = async (req, res) => {
   }
 };
 
-// ── POST /api/roadmap/generate ────────────────────────────────────────────────
+// ─────────────────────────────────────────────────────────────────────────────
+// POST /api/roadmap/generate  (protected)
+//
+// Body shape per mode:
+//   { mode: "profile" }
+//   { mode: "company", targetCompany: "Amazon", testDate: "2026-10-01" }
+//   { mode: "topic",   customTopic: "System Design" [, days: 10] }
+// ─────────────────────────────────────────────────────────────────────────────
 const generateRoadmap = async (req, res) => {
   try {
-    // ── 1. Fetch profile + DSA progress ───────────────────────────────────────
+    const mode = (req.body.mode || 'profile').toLowerCase();
+
+    if (!['profile', 'company', 'topic'].includes(mode)) {
+      return res.status(400).json({
+        success: false,
+        message: `Invalid mode "${mode}". Must be one of: profile, company, topic.`,
+      });
+    }
+
+    // ── 1. Fetch user + DSA progress (needed in all modes) ───────────────────
     const [user, dsaProgress] = await Promise.all([
       User.findById(req.user.id),
       DSAProgress.findOne({ userId: req.user.id }),
@@ -43,94 +137,152 @@ const generateRoadmap = async (req, res) => {
     }
 
     const userContext = buildUserContext(user, dsaProgress);
-    const weakDSA     = dsaProgress ? dsaProgress.weakTopics : [];
-    const weakResume  = user.resumeAnalysis ? user.resumeAnalysis.weakPoints : [];
+    const weakDSA     = dsaProgress?.weakTopics    || [];
+    const weakResume  = user.resumeAnalysis?.weakPoints || [];
 
-    // ── 2. Build prompt and invoke Gemini ─────────────────────────────────────
-    const prompt = buildWeeklyRoadmapPrompt(userContext, weakDSA, weakResume);
+    // ── 2. Mode-specific logic ────────────────────────────────────────────────
+    let prompt;
+    let planDays;
+    let truncated     = false;
+    let targetCompany = null;
+    let testDate      = null;
+    let customTopic   = null;
 
-    const tryParseRoadmap = (raw) => {
-      const parsed = JSON.parse(stripFences(raw));
-      if (!Array.isArray(parsed)) throw new Error('Response is not a JSON array.');
-      if (parsed.length !== 7) {
-        throw new Error(`Expected exactly 7 daily items, got ${parsed.length}.`);
-      }
-      // Validate schema of each day
-      return parsed.map((item, idx) => {
-        if (!item.day || !item.focusArea || !item.task) {
-          throw new Error(`Item at index ${idx} is missing required fields.`);
-        }
-        return {
-          day:       String(item.day).trim(),
-          focusArea: String(item.focusArea).trim(),
-          task:      String(item.task).trim(),
-          completed: false, // every day starts incomplete
-        };
-      });
-    };
-
-    let rawResponse;
-    try {
-      rawResponse = await generateContent(prompt);
-    } catch (aiErr) {
-      console.error('[generateRoadmap] Gemini failed:', aiErr.message);
-      return res.status(aiErr._status || 502).json({
-        success: false,
-        message: aiErr.message || 'AI service is temporarily unavailable.',
-      });
+    // ─── mode: "profile" ────────────────────────────────────────────────────
+    if (mode === 'profile') {
+      planDays = 7;
+      prompt   = buildProfileRoadmapPrompt(userContext, weakDSA, weakResume);
     }
 
-    let items;
-    try {
-      items = tryParseRoadmap(rawResponse);
-    } catch (_firstErr) {
-      console.warn('[generateRoadmap] First parse failed — retrying with stricter prompt.');
+    // ─── mode: "company" ────────────────────────────────────────────────────
+    else if (mode === 'company') {
+      targetCompany = (req.body.targetCompany || '').trim();
+      const rawDate = req.body.testDate;
 
-      const retryPrompt =
-        prompt +
-        '\n\nIMPORTANT: Your previous response was invalid. ' +
-        'Return ONLY a raw JSON array containing exactly 7 objects matching the schema.';
-
-      try {
-        const retryRaw = await generateContent(retryPrompt, { skipRetry: true });
-        items = tryParseRoadmap(retryRaw);
-      } catch (retryErr) {
-        console.error('[generateRoadmap] Retry also failed to parse:', retryErr.message);
-        return res.status(502).json({
+      if (!targetCompany) {
+        return res.status(400).json({
           success: false,
-          message: 'The AI returned an unreadable roadmap format. Please try again.',
+          message: 'targetCompany is required for company mode.',
         });
       }
+      if (!rawDate) {
+        return res.status(400).json({
+          success: false,
+          message: 'testDate is required for company mode.',
+        });
+      }
+
+      testDate = new Date(rawDate);
+      if (isNaN(testDate.getTime())) {
+        return res.status(400).json({
+          success: false,
+          message: 'testDate is not a valid date.',
+        });
+      }
+
+      const today    = new Date();
+      today.setHours(0, 0, 0, 0);
+      testDate.setHours(0, 0, 0, 0);
+
+      const msPerDay    = 24 * 60 * 60 * 1000;
+      const actualDays  = Math.round((testDate - today) / msPerDay);
+
+      if (actualDays < MIN_PLAN_DAYS) {
+        return res.status(400).json({
+          success: false,
+          message:
+            actualDays <= 0
+              ? 'testDate must be in the future.'
+              : `Only ${actualDays} day(s) until testDate — not enough time for a meaningful plan.`,
+        });
+      }
+
+      truncated = actualDays > MAX_PLAN_DAYS;
+      planDays  = truncated ? MAX_PLAN_DAYS : actualDays;
+
+      prompt = buildCompanyRoadmapPrompt(
+        userContext, weakDSA, targetCompany, planDays, truncated,
+      );
     }
 
-    // ── 3. Save as new WeeklyRoadmap document ─────────────────────────────────
-    const roadmap = new WeeklyRoadmap({
+    // ─── mode: "topic" ──────────────────────────────────────────────────────
+    else {
+      customTopic = (req.body.customTopic || '').trim();
+
+      if (!customTopic) {
+        return res.status(400).json({
+          success: false,
+          message: 'customTopic is required for topic mode.',
+        });
+      }
+
+      // Optional student-specified length; default 7, clamp to [1, 30]
+      const reqDays = parseInt(req.body.days, 10);
+      planDays = Number.isFinite(reqDays)
+        ? Math.min(Math.max(reqDays, 1), MAX_PLAN_DAYS)
+        : 7;
+
+      prompt = buildTopicRoadmapPrompt(customTopic, planDays);
+    }
+
+    // ── 3. Generate + parse ───────────────────────────────────────────────────
+    let items;
+    try {
+      items = await generateAndParse(prompt, planDays, `generateRoadmap:${mode}`);
+    } catch (genErr) {
+      return res.status(genErr._status || 502).json({
+        success: false,
+        message: genErr.message,
+      });
+    }
+
+    // ── 4. Persist ────────────────────────────────────────────────────────────
+    const now      = new Date();
+    const endDate  = new Date(now.getTime() + planDays * 24 * 60 * 60 * 1000);
+
+    const roadmapDoc = new WeeklyRoadmap({
       userId:        req.user.id,
-      weekStartDate: new Date(),
-      weekEndDate:   new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
+      mode,
+      ...(targetCompany && { targetCompany }),
+      ...(testDate      && { testDate }),
+      ...(customTopic   && { customTopic }),
+      weekStartDate: now,
+      weekEndDate:   endDate,
       items,
-      generatedAt:   new Date(),
+      generatedAt:   now,
     });
 
-    await roadmap.save();
+    await roadmapDoc.save();
+
+    // ── 5. Respond ────────────────────────────────────────────────────────────
+    const meta = {};
+    if (truncated) {
+      meta.truncationNote =
+        `Your test date is more than ${MAX_PLAN_DAYS} days away. ` +
+        `This plan covers the next ${MAX_PLAN_DAYS} days. ` +
+        'Regenerate closer to your test date for an updated plan.';
+    }
 
     return res.status(201).json({
       success: true,
-      message: 'Weekly roadmap generated successfully.',
-      roadmap,
+      message: `${mode.charAt(0).toUpperCase() + mode.slice(1)} roadmap generated successfully.`,
+      roadmap: roadmapDoc,
+      ...(Object.keys(meta).length && { meta }),
     });
+
   } catch (err) {
     console.error('[generateRoadmap]', err.message);
     return res.status(500).json({ success: false, message: 'Server error. Please try again.' });
   }
 };
 
-// ── PATCH /api/roadmap/:day/toggle ────────────────────────────────────────────
+// ─────────────────────────────────────────────────────────────────────────────
+// PATCH /api/roadmap/:day/toggle
+// ─────────────────────────────────────────────────────────────────────────────
 const toggleDayCompleted = async (req, res) => {
-  const { day } = req.params; // e.g. "Day 1", "Day 2"
+  const { day } = req.params;
 
   try {
-    // Find the latest roadmap for this user
     const roadmap = await WeeklyRoadmap.findOne({ userId: req.user.id })
       .sort({ weekStartDate: -1 });
 
@@ -141,7 +293,6 @@ const toggleDayCompleted = async (req, res) => {
       });
     }
 
-    // Find the specific day's item
     const item = roadmap.items.find(
       (it) => it.day.toLowerCase() === day.trim().toLowerCase()
     );
@@ -153,10 +304,7 @@ const toggleDayCompleted = async (req, res) => {
       });
     }
 
-    // Toggle the completed state
     item.completed = !item.completed;
-
-    // Save modifications
     await roadmap.save();
 
     return res.status(200).json({
