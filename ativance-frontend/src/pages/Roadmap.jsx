@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { getRoadmap, generateRoadmap, toggleRoadmapDay } from '../services/authService';
+import { getRoadmap, generateRoadmap, toggleRoadmapDay, toggleSaveRoadmap, getSavedRoadmaps } from '../services/authService';
 
 // ── Icons ─────────────────────────────────────────────────────────────────────
 const SpinnerIcon = ({ cls = 'h-4 w-4' }) => (
@@ -12,6 +12,12 @@ const SpinnerIcon = ({ cls = 'h-4 w-4' }) => (
 const AlertIcon = () => (
   <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mt-0.5 shrink-0 text-rose-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+  </svg>
+);
+
+const BookmarkIcon = ({ saved, cls = 'h-5 w-5' }) => (
+  <svg xmlns="http://www.w3.org/2000/svg" className={`${cls} ${saved ? 'text-indigo-600 fill-indigo-600' : 'text-zinc-500 fill-transparent'}`} viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+    <path strokeLinecap="round" strokeLinejoin="round" d="M5 5a2 2 0 012-2h10a2 2 0 012 2v16l-7-3.5L5 21V5z" />
   </svg>
 );
 
@@ -77,8 +83,10 @@ export default function Roadmap() {
   const [error,      setError]      = useState('');
   const [meta,       setMeta]       = useState(null);
 
-  // Mode-selection view vs. roadmap view
+  // View states
   const [showGenerator, setShowGenerator] = useState(false);
+  const [showSaved, setShowSaved] = useState(false);
+  const [savedRoadmaps, setSavedRoadmaps] = useState([]);
 
   // Mode form state
   const [activeMode,     setActiveMode]     = useState('profile');
@@ -102,15 +110,41 @@ export default function Roadmap() {
     }
   };
 
+  const fetchSavedRoadmaps = async () => {
+    setLoading(true); setError('');
+    try {
+      const data = await getSavedRoadmaps();
+      setSavedRoadmaps(data.roadmaps);
+    } catch (err) {
+      setError(err.response?.data?.message || 'Failed to fetch saved roadmaps.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
   // ── Toggle task completion ──────────────────────────────────────────────────
   const handleToggle = async (day) => {
-    if (actioning) return;
+    if (actioning || !roadmap?._id) return;
     setActioning(true); setError('');
     try {
-      const data = await toggleRoadmapDay(day);
+      const data = await toggleRoadmapDay(roadmap._id, day);
       setRoadmap(data.roadmap);
     } catch (err) {
       setError(err.response?.data?.message || 'Failed to toggle task.');
+    } finally {
+      setActioning(false);
+    }
+  };
+
+  // ── Toggle save status ──────────────────────────────────────────────────────
+  const handleToggleSave = async () => {
+    if (actioning || !roadmap?._id) return;
+    setActioning(true); setError('');
+    try {
+      const data = await toggleSaveRoadmap(roadmap._id);
+      setRoadmap(data.roadmap);
+    } catch (err) {
+      setError(err.response?.data?.message || 'Failed to save roadmap.');
     } finally {
       setActioning(false);
     }
@@ -339,6 +373,69 @@ export default function Roadmap() {
     );
   }
 
+  // ── SAVED ROADMAPS VIEW ───────────────────────────────────────────────────
+  if (showSaved) {
+    return (
+      <div className="max-w-3xl mx-auto space-y-6 animate-fadeIn">
+        <div className="flex items-start justify-between gap-4 flex-wrap">
+          <div>
+            <h1 className="text-2xl sm:text-3xl font-bold text-zinc-900 tracking-tight">
+              Saved Roadmaps
+            </h1>
+            <p className="text-zinc-500 text-xs sm:text-sm mt-1">
+              Your previously saved study plans.
+            </p>
+          </div>
+          <button
+            onClick={() => { setShowSaved(false); setError(''); }}
+            className="px-4 py-2 bg-white hover:bg-zinc-50 text-zinc-600 text-xs font-semibold rounded-xl border border-[#E5E5E0] hover:border-zinc-300 transition shadow-soft"
+          >
+            ← Back to Plan
+          </button>
+        </div>
+
+        {error && (
+          <div className="flex items-start gap-2.5 px-4 py-3 rounded-xl bg-rose-50 border border-rose-200/80 text-rose-700 text-xs font-medium">
+            <AlertIcon />
+            <span>{error}</span>
+          </div>
+        )}
+
+        {savedRoadmaps.length === 0 ? (
+          <div className="bg-white border border-[#E5E5E0] rounded-2xl p-10 text-center shadow-soft">
+            <BookmarkIcon saved={false} cls="h-10 w-10 mx-auto text-zinc-300 mb-3" />
+            <p className="text-zinc-500 text-sm font-medium">You haven't saved any roadmaps yet.</p>
+          </div>
+        ) : (
+          <div className="grid gap-4">
+            {savedRoadmaps.map((r) => (
+              <div 
+                key={r._id}
+                onClick={() => {
+                  setRoadmap(r);
+                  setShowSaved(false);
+                }}
+                className="bg-white border border-[#E5E5E0] rounded-2xl p-5 cursor-pointer hover:border-indigo-300 hover:shadow-card transition-all"
+              >
+                <div className="flex justify-between items-start mb-2">
+                  <h3 className="font-bold text-zinc-900 text-base">{roadmapContextLabel(r)}</h3>
+                  <span className="text-xs font-semibold text-indigo-600 bg-indigo-50 px-2.5 py-1 rounded-md">
+                    {r.items?.length || 0} Days
+                  </span>
+                </div>
+                <div className="flex items-center gap-4 text-xs text-zinc-500">
+                  <span>Saved on {new Date(r.savedAt).toLocaleDateString()}</span>
+                  <span>•</span>
+                  <span>{r.items?.filter(i => i.completed).length || 0} completed</span>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+    );
+  }
+
   // ── ROADMAP VIEW ─────────────────────────────────────────────────────────────
   return (
     <div className="max-w-3xl mx-auto space-y-6 animate-fadeIn">
@@ -352,13 +449,33 @@ export default function Roadmap() {
             </p>
           )}
         </div>
-        <button
-          id="roadmap-regenerate-btn"
-          onClick={() => { setShowGenerator(true); setError(''); setMeta(null); }}
-          className="px-4 py-2 bg-white hover:bg-zinc-50 text-zinc-700 text-xs font-semibold rounded-xl border border-[#E5E5E0] hover:border-zinc-300 transition shadow-soft"
-        >
-          ↺ Regenerate Plan
-        </button>
+        <div className="flex gap-2">
+          <button
+            onClick={() => { setShowSaved(true); setShowGenerator(false); fetchSavedRoadmaps(); }}
+            className="px-4 py-2 bg-white hover:bg-zinc-50 text-zinc-700 text-xs font-semibold rounded-xl border border-[#E5E5E0] hover:border-zinc-300 transition shadow-soft flex items-center gap-1.5"
+          >
+            <BookmarkIcon saved={false} cls="h-4 w-4" />
+            View Saved
+          </button>
+          <button
+            id="roadmap-save-btn"
+            onClick={handleToggleSave}
+            className={`px-4 py-2 flex items-center gap-1.5 text-xs font-semibold rounded-xl border transition shadow-soft
+              ${roadmap.isSaved 
+                ? 'bg-indigo-50 border-indigo-200 text-indigo-700 hover:bg-indigo-100' 
+                : 'bg-white hover:bg-zinc-50 text-zinc-700 border-[#E5E5E0] hover:border-zinc-300'}`}
+          >
+            <BookmarkIcon saved={roadmap.isSaved} cls="h-4 w-4" />
+            {roadmap.isSaved ? 'Saved' : 'Save Plan'}
+          </button>
+          <button
+            id="roadmap-regenerate-btn"
+            onClick={() => { setShowGenerator(true); setError(''); setMeta(null); setShowSaved(false); }}
+            className="px-4 py-2 bg-white hover:bg-zinc-50 text-zinc-700 text-xs font-semibold rounded-xl border border-[#E5E5E0] hover:border-zinc-300 transition shadow-soft"
+          >
+            ↺ Regenerate Plan
+          </button>
+        </div>
       </div>
 
       {/* ── Error Banner ── */}

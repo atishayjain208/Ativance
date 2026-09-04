@@ -96,6 +96,16 @@ const WeeklyRoadmapSchema = new mongoose.Schema(
       type:    Date,
       default: Date.now,
     },
+
+    // ── Saved state ──────────────────────────────────────────────────────────
+    isSaved: {
+      type:    Boolean,
+      default: false,
+    },
+    savedAt: {
+      type: Date,
+      default: null,
+    },
   },
   {
     timestamps: true, // manages createdAt and updatedAt automatically

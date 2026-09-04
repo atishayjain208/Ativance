@@ -108,6 +108,51 @@ const getLatestRoadmap = async (req, res) => {
 };
 
 // ─────────────────────────────────────────────────────────────────────────────
+// GET /api/roadmap/saved
+// ─────────────────────────────────────────────────────────────────────────────
+const getSavedRoadmaps = async (req, res) => {
+  try {
+    const roadmaps = await WeeklyRoadmap.find({ userId: req.user.id, isSaved: true })
+      .sort({ savedAt: -1, weekStartDate: -1 });
+
+    return res.status(200).json({
+      success: true,
+      roadmaps,
+    });
+  } catch (err) {
+    console.error('[getSavedRoadmaps]', err.message);
+    return res.status(500).json({ success: false, message: 'Server error. Please try again.' });
+  }
+};
+
+// ─────────────────────────────────────────────────────────────────────────────
+// PATCH /api/roadmap/:id/save
+// ─────────────────────────────────────────────────────────────────────────────
+const toggleSaveRoadmap = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const roadmap = await WeeklyRoadmap.findOne({ _id: id, userId: req.user.id });
+
+    if (!roadmap) {
+      return res.status(404).json({ success: false, message: 'Roadmap not found.' });
+    }
+
+    roadmap.isSaved = !roadmap.isSaved;
+    roadmap.savedAt = roadmap.isSaved ? new Date() : null;
+    await roadmap.save();
+
+    return res.status(200).json({
+      success: true,
+      message: roadmap.isSaved ? 'Roadmap saved.' : 'Roadmap removed from saved list.',
+      roadmap,
+    });
+  } catch (err) {
+    console.error('[toggleSaveRoadmap]', err.message);
+    return res.status(500).json({ success: false, message: 'Server error. Please try again.' });
+  }
+};
+
+// ─────────────────────────────────────────────────────────────────────────────
 // POST /api/roadmap/generate  (protected)
 //
 // Body shape per mode:
@@ -277,19 +322,19 @@ const generateRoadmap = async (req, res) => {
 };
 
 // ─────────────────────────────────────────────────────────────────────────────
-// PATCH /api/roadmap/:day/toggle
+// ─────────────────────────────────────────────────────────────────────────────
+// PATCH /api/roadmap/:id/:day/toggle
 // ─────────────────────────────────────────────────────────────────────────────
 const toggleDayCompleted = async (req, res) => {
-  const { day } = req.params;
+  const { id, day } = req.params;
 
   try {
-    const roadmap = await WeeklyRoadmap.findOne({ userId: req.user.id })
-      .sort({ weekStartDate: -1 });
+    const roadmap = await WeeklyRoadmap.findOne({ _id: id, userId: req.user.id });
 
     if (!roadmap) {
       return res.status(404).json({
         success: false,
-        message: 'No roadmap found. Please generate a roadmap first.',
+        message: 'No roadmap found.',
       });
     }
 
@@ -320,6 +365,8 @@ const toggleDayCompleted = async (req, res) => {
 
 module.exports = {
   getLatestRoadmap,
+  getSavedRoadmaps,
+  toggleSaveRoadmap,
   generateRoadmap,
   toggleDayCompleted,
 };

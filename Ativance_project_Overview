@@ -1,0 +1,47 @@
+# Ativance Platform Overview
+
+Ativance is an AI-powered, comprehensive career preparation platform designed specifically for software engineering students and professionals. It uses modern MERN stack architecture (MongoDB, Express, React, Node.js) combined with **Google's Gemini AI** to provide highly personalized learning, analysis, and interview preparation.
+
+Here is a breakdown of everything your project can do, organized by its core features:
+
+## 1. 📊 Centralized Dashboard & Authentication
+- **Secure Access**: Users can securely sign up and log in using JWT (JSON Web Token) authentication.
+- **Progress Tracking**: A central dashboard visualizes user progress across different modules, summarizing how prepared they are for their next big career step.
+
+## 2. 📄 AI Resume Analyzer
+- **PDF Extraction**: Users can upload their resume in PDF format.
+- **Smart Analysis**: The system extracts the text and passes it to the AI.
+- **Actionable Feedback**: The AI provides a detailed critique of the resume, identifying strengths, formatting issues, and explicitly highlighting "weak points" or missing skills that need improvement.
+
+## 3. 💻 GitHub Profile Integrator
+- **Codebase Analysis**: Users can connect or provide their GitHub username.
+- **Skill Mapping**: The platform analyzes their public repositories and commit history to map out their actual coding abilities, language proficiency, and active development streaks.
+
+## 4. 🧠 DSA (Data Structures & Algorithms) Coach
+- **LeetCode Syncing**: Users can synchronize their LeetCode profile to automatically pull in their solved problem statistics.
+- **Weakness Detection**: The AI analyzes the user's DSA progress to identify specific algorithmic topics they are struggling with (e.g., Dynamic Programming, Graph Theory).
+- **Targeted Recommendations**: It provides specific LeetCode or general algorithm problems to solve to patch those weak areas.
+
+## 5. 🗺️ AI-Generated Study Roadmaps
+- **Dynamic Generation**: Users can generate comprehensive daily study plans based on three modes:
+  - **Profile Mode**: Generates a custom plan automatically tailored to the user's weaknesses (derived from their Resume and DSA performance).
+  - **Company Mode**: Generates a timeline-driven plan for a specific company (e.g., Google, Amazon) ending perfectly on the user's scheduled test/interview date.
+  - **Topic Mode**: A deep-dive study plan for mastering a custom topic (e.g., "System Design").
+- **Interactive Tracking**: Users can check off daily tasks as they complete them.
+- **Save feature**: Users can save and switch between multiple roadmaps.
+
+## 6. 🎙️ AI Interview Simulator
+- **Mock Interviews**: An interactive interview mode where the user can practice conversational behavioral or technical interviews.
+- **Real-time Feedback**: The AI plays the role of the interviewer, asks relevant questions, analyzes the user's answers, and provides a final evaluation on how they performed and what they can improve.
+
+## 7. 🤖 AI Mentor Chat
+- **Always-on Assistant**: A dedicated chat interface where users can ask any technical, career, or debugging questions.
+- **Context-Aware**: Because the system stores the user's resume, DSA stats, and GitHub data, the AI Mentor has full context about the user and can provide incredibly personalized advice.
+
+---
+
+### 🛠️ Technical Stack Highlights
+- **Frontend**: React (Vite) with TailwindCSS for beautiful, responsive, and dynamic UI components.
+- **Backend**: Node.js & Express.js REST API.
+- **Database**: MongoDB (Mongoose) for storing user profiles, chat histories, roadmap states, and progress metrics.
+- **AI Engine**: `@google/generative-ai` (Gemini SDK) powers all the intelligent generation, analysis, and conversational features.

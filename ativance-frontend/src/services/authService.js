@@ -137,9 +137,19 @@ export const generateRoadmap = async (payload = {}) => {
   return data; // { success, message, roadmap, meta? }
 };
 
-export const toggleRoadmapDay = async (day) => {
-  const { data } = await API.patch(`/api/roadmap/${encodeURIComponent(day)}/toggle`);
+export const toggleRoadmapDay = async (id, day) => {
+  const { data } = await API.patch(`/api/roadmap/${id}/${encodeURIComponent(day)}/toggle`);
   return data; // { success, message, roadmap }
+};
+
+export const toggleSaveRoadmap = async (id) => {
+  const { data } = await API.patch(`/api/roadmap/${id}/save`);
+  return data; // { success, message, roadmap }
+};
+
+export const getSavedRoadmaps = async () => {
+  const { data } = await API.get('/api/roadmap/saved');
+  return data; // { success, roadmaps }
 };
 
 // ── Interview Simulator ───────────────────────────────────────────────────────
