@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
+import { Sparkles, Mail, Lock, ArrowRight, AlertCircle, RefreshCw } from 'lucide-react';
 import { login } from '../services/authService';
 
 export default function Login() {
@@ -11,14 +12,13 @@ export default function Login() {
 
   const handleChange = (e) => {
     setForm((prev) => ({ ...prev, [e.target.name]: e.target.value }));
-    setError(''); // clear error on edit
+    setError('');
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     const { email, password } = form;
 
-    // ── Client-side validation ─────────────────────────────────────────────
     if (!email.trim() || !password) {
       setError('Email and password are required.');
       return;
@@ -28,12 +28,10 @@ export default function Login() {
       setLoading(true);
       const data = await login({ email, password });
 
-      // Store token and redirect
       localStorage.setItem('token', data.token);
       localStorage.setItem('user', JSON.stringify(data.user));
       navigate('/dashboard');
     } catch (err) {
-      // axios wraps the server response inside err.response.data
       const msg =
         err.response?.data?.message || 'Something went wrong. Please try again.';
       setError(msg);
@@ -43,28 +41,31 @@ export default function Login() {
   };
 
   return (
-    <div className="min-h-screen bg-[#F7F7F5] flex flex-col items-center justify-center px-4 py-12">
+    <div className="min-h-screen bg-[#090B10] flex flex-col items-center justify-center px-4 py-12 selection:bg-[#7C5CFC]/30 selection:text-[#F8FAFC] font-sans">
       {/* Brand logo header */}
-      <div className="mb-6 flex items-center gap-2.5">
-        <div className="h-9 w-9 rounded-xl bg-indigo-600 flex items-center justify-center shadow-sm">
-          <span className="text-white font-bold text-lg">C</span>
+      <div className="mb-6 flex items-center gap-3">
+        <div className="h-10 w-10 rounded-xl bg-gradient-to-br from-[#7C5CFC] to-[#22D3EE] p-[1px] shadow-glow-purple">
+          <div className="h-full w-full bg-[#0F1219] rounded-[11px] flex items-center justify-center">
+            <Sparkles className="h-5 w-5 text-[#22D3EE]" />
+          </div>
         </div>
-        <span className="text-xl font-bold text-zinc-900 tracking-tight">CareerOS</span>
+        <div className="flex flex-col">
+          <span className="text-xl font-bold text-[#F8FAFC] tracking-tight leading-none">Ativance</span>
+          <span className="text-[10px] font-semibold text-[#7C5CFC] tracking-wider uppercase mt-1">AI Career Copilot</span>
+        </div>
       </div>
 
-      <div className="w-full max-w-md bg-white rounded-2xl shadow-card p-8 sm:p-10 border border-[#E5E5E0] animate-fadeIn">
+      <div className="w-full max-w-md bg-[#141821] rounded-3xl shadow-card p-8 sm:p-10 border border-[#1F2633] animate-fadeIn space-y-6">
         {/* Header */}
-        <div className="mb-8 text-center">
-          <h1 className="text-2xl sm:text-3xl font-bold text-zinc-900 tracking-tight">Welcome back</h1>
-          <p className="text-zinc-500 mt-1.5 text-xs sm:text-sm">Sign in to access your AI career copilot</p>
+        <div className="text-center space-y-1.5">
+          <h1 className="text-2xl sm:text-3xl font-bold text-[#F8FAFC] tracking-tight">Welcome back</h1>
+          <p className="text-[#94A3B8] text-xs sm:text-sm">Sign in to access your AI career platform</p>
         </div>
 
         {/* Error banner */}
         {error && (
-          <div className="mb-5 px-4 py-3 rounded-xl bg-rose-50 border border-rose-200/80 text-rose-700 text-xs font-medium flex items-center gap-2">
-            <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 shrink-0 text-rose-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-            </svg>
+          <div className="px-4 py-3 rounded-xl bg-[#F87171]/10 border border-[#F87171]/20 text-[#F87171] text-xs font-medium flex items-center gap-2">
+            <AlertCircle className="h-4 w-4 shrink-0" />
             <span>{error}</span>
           </div>
         )}
@@ -72,62 +73,68 @@ export default function Login() {
         <form onSubmit={handleSubmit} noValidate className="space-y-4">
           {/* Email */}
           <div className="space-y-1.5">
-            <label htmlFor="email" className="block text-xs font-semibold text-zinc-700 uppercase tracking-wider">
+            <label htmlFor="email" className="block text-xs font-semibold text-[#94A3B8] uppercase tracking-wider">
               Email address
             </label>
-            <input
-              id="email"
-              name="email"
-              type="email"
-              autoComplete="email"
-              value={form.email}
-              onChange={handleChange}
-              placeholder="you@example.com"
-              className="w-full px-4 py-2.5 rounded-xl bg-white border border-[#E5E5E0] text-zinc-900 placeholder:text-zinc-400 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-600 transition text-sm shadow-soft"
-            />
+            <div className="relative">
+              <Mail className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-[#64748B]" />
+              <input
+                id="email"
+                name="email"
+                type="email"
+                autoComplete="email"
+                value={form.email}
+                onChange={handleChange}
+                placeholder="you@example.com"
+                className="w-full pl-10 pr-4 py-2.5 rounded-xl bg-[#181D27] border border-[#1F2633] text-[#F8FAFC] placeholder:text-[#64748B] focus:outline-none focus:border-[#7C5CFC] transition text-sm shadow-soft"
+              />
+            </div>
           </div>
 
           {/* Password */}
           <div className="space-y-1.5">
-            <label htmlFor="password" className="block text-xs font-semibold text-zinc-700 uppercase tracking-wider">
+            <label htmlFor="password" className="block text-xs font-semibold text-[#94A3B8] uppercase tracking-wider">
               Password
             </label>
-            <input
-              id="password"
-              name="password"
-              type="password"
-              autoComplete="current-password"
-              value={form.password}
-              onChange={handleChange}
-              placeholder="••••••••"
-              className="w-full px-4 py-2.5 rounded-xl bg-white border border-[#E5E5E0] text-zinc-900 placeholder:text-zinc-400 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-600 transition text-sm shadow-soft"
-            />
+            <div className="relative">
+              <Lock className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-[#64748B]" />
+              <input
+                id="password"
+                name="password"
+                type="password"
+                autoComplete="current-password"
+                value={form.password}
+                onChange={handleChange}
+                placeholder="••••••••"
+                className="w-full pl-10 pr-4 py-2.5 rounded-xl bg-[#181D27] border border-[#1F2633] text-[#F8FAFC] placeholder:text-[#64748B] focus:outline-none focus:border-[#7C5CFC] transition text-sm shadow-soft"
+              />
+            </div>
           </div>
 
           {/* Submit */}
           <button
             type="submit"
             disabled={loading}
-            className="w-full mt-2 py-3 px-4 bg-[#171717] hover:bg-black disabled:opacity-60 disabled:cursor-not-allowed text-white font-semibold text-sm rounded-xl transition duration-150 shadow-sm flex items-center justify-center gap-2"
+            className="w-full mt-2 py-3 px-4 bg-gradient-to-r from-[#7C5CFC] to-[#6344E2] hover:from-[#9B7CFF] disabled:opacity-60 disabled:cursor-not-allowed text-white font-bold text-sm rounded-xl transition duration-150 shadow-glow-purple flex items-center justify-center gap-2"
           >
             {loading ? (
               <>
-                <svg className="animate-spin h-4 w-4 text-white" fill="none" viewBox="0 0 24 24">
-                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z" />
-                </svg>
+                <RefreshCw className="h-4 w-4 animate-spin text-white" />
                 <span>Signing in…</span>
               </>
             ) : (
-              'Sign in'
+              <>
+                <span>Sign in</span>
+                <ArrowRight className="h-4 w-4" />
+              </>
             )}
           </button>
         </form>
 
         {/* Footer link */}
-        <p className="mt-6 text-center text-xs sm:text-sm text-zinc-500">
+        <p className="text-center text-xs sm:text-sm text-[#94A3B8]">
           Don't have an account?{' '}
-          <Link to="/signup" className="text-indigo-600 hover:text-indigo-700 font-semibold transition">
+          <Link to="/signup" className="text-[#7C5CFC] hover:text-[#9B7CFF] font-semibold transition">
             Create an account
           </Link>
         </p>

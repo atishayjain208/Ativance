@@ -1,49 +1,41 @@
 import { useState, useEffect } from 'react';
+import {
+  Map,
+  Sparkles,
+  Bookmark,
+  CheckCircle2,
+  AlertCircle,
+  Calendar,
+  ArrowLeft,
+  RefreshCw,
+  Target,
+  Building2,
+  BookOpen,
+  Clock
+} from 'lucide-react';
 import { getRoadmap, generateRoadmap, toggleRoadmapDay, toggleSaveRoadmap, getSavedRoadmaps } from '../services/authService';
 
-// ── Icons ─────────────────────────────────────────────────────────────────────
-const SpinnerIcon = ({ cls = 'h-4 w-4' }) => (
-  <svg className={`animate-spin ${cls}`} fill="none" viewBox="0 0 24 24">
-    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z" />
-  </svg>
-);
-
-const AlertIcon = () => (
-  <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mt-0.5 shrink-0 text-rose-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-  </svg>
-);
-
-const BookmarkIcon = ({ saved, cls = 'h-5 w-5' }) => (
-  <svg xmlns="http://www.w3.org/2000/svg" className={`${cls} ${saved ? 'text-indigo-600 fill-indigo-600' : 'text-zinc-500 fill-transparent'}`} viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-    <path strokeLinecap="round" strokeLinejoin="round" d="M5 5a2 2 0 012-2h10a2 2 0 012 2v16l-7-3.5L5 21V5z" />
-  </svg>
-);
-
-// ── Mode tab config ───────────────────────────────────────────────────────────
 const MODES = [
   {
     id:    'profile',
     label: 'Based on My Profile',
-    icon:  '🎯',
+    icon:  Target,
     desc:  'AI analyses your weak DSA areas, resume gaps, and GitHub profile to build a personalised plan.',
   },
   {
     id:    'company',
     label: 'Target Company + Test Date',
-    icon:  '🏢',
+    icon:  Building2,
     desc:  'Enter a company name and your interview date. The plan is weighted to that company\'s known interview style.',
   },
   {
     id:    'topic',
     label: 'Custom Topic',
-    icon:  '📚',
+    icon:  BookOpen,
     desc:  'Type any topic (e.g. "System Design", "DBMS") for a focused, progressive daily study plan.',
   },
 ];
 
-// ── Helper: compute days remaining until a date ───────────────────────────────
 const daysUntil = (dateStr) => {
   if (!dateStr) return null;
   const target = new Date(dateStr);
@@ -53,7 +45,6 @@ const daysUntil = (dateStr) => {
   return Math.round((target - today) / (1000 * 60 * 60 * 24));
 };
 
-// ── Helper: build a human-readable roadmap context label ─────────────────────
 const roadmapContextLabel = (roadmap) => {
   if (!roadmap) return null;
   const { mode, targetCompany, testDate, customTopic, items } = roadmap;
@@ -75,27 +66,23 @@ const roadmapContextLabel = (roadmap) => {
   return `Personalised ${dayCount}-Day Roadmap`;
 };
 
-// ─────────────────────────────────────────────────────────────────────────────
 export default function Roadmap() {
-  const [roadmap,    setRoadmap]    = useState(null);
-  const [loading,    setLoading]    = useState(true);
-  const [actioning,  setActioning]  = useState(false);
-  const [error,      setError]      = useState('');
-  const [meta,       setMeta]       = useState(null);
+  const [roadmap, setRoadmap] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [actioning, setActioning] = useState(false);
+  const [error, setError] = useState('');
+  const [meta, setMeta] = useState(null);
 
-  // View states
   const [showGenerator, setShowGenerator] = useState(false);
   const [showSaved, setShowSaved] = useState(false);
   const [savedRoadmaps, setSavedRoadmaps] = useState([]);
 
-  // Mode form state
-  const [activeMode,     setActiveMode]     = useState('profile');
-  const [targetCompany,  setTargetCompany]  = useState('');
-  const [testDate,       setTestDate]       = useState('');
-  const [customTopic,    setCustomTopic]    = useState('');
-  const [topicDays,      setTopicDays]      = useState('');
+  const [activeMode, setActiveMode] = useState('profile');
+  const [targetCompany, setTargetCompany] = useState('');
+  const [testDate, setTestDate] = useState('');
+  const [customTopic, setCustomTopic] = useState('');
+  const [topicDays, setTopicDays] = useState('');
 
-  // ── Load roadmap on mount ───────────────────────────────────────────────────
   useEffect(() => { fetchRoadmap(); }, []);
 
   const fetchRoadmap = async () => {
@@ -122,7 +109,6 @@ export default function Roadmap() {
     }
   };
 
-  // ── Toggle task completion ──────────────────────────────────────────────────
   const handleToggle = async (day) => {
     if (actioning || !roadmap?._id) return;
     setActioning(true); setError('');
@@ -136,7 +122,6 @@ export default function Roadmap() {
     }
   };
 
-  // ── Toggle save status ──────────────────────────────────────────────────────
   const handleToggleSave = async () => {
     if (actioning || !roadmap?._id) return;
     setActioning(true); setError('');
@@ -150,14 +135,12 @@ export default function Roadmap() {
     }
   };
 
-  // ── Submit generation form ──────────────────────────────────────────────────
   const handleGenerate = async () => {
     setError('');
 
-    // Basic client-side validation
     if (activeMode === 'company') {
       if (!targetCompany.trim()) { setError('Please enter a company name.'); return; }
-      if (!testDate)             { setError('Please select a test/interview date.'); return; }
+      if (!testDate) { setError('Please select a test/interview date.'); return; }
       if (daysUntil(testDate) < 1) { setError('Test date must be at least 1 day in the future.'); return; }
     }
     if (activeMode === 'topic' && !customTopic.trim()) {
@@ -167,7 +150,7 @@ export default function Roadmap() {
     const payload = { mode: activeMode };
     if (activeMode === 'company') {
       payload.targetCompany = targetCompany.trim();
-      payload.testDate      = testDate;
+      payload.testDate = testDate;
     }
     if (activeMode === 'topic') {
       payload.customTopic = customTopic.trim();
@@ -189,91 +172,85 @@ export default function Roadmap() {
     }
   };
 
-  // ── Derived metrics ─────────────────────────────────────────────────────────
-  const items          = roadmap?.items || [];
+  const items = roadmap?.items || [];
   const completedCount = items.filter((it) => it.completed).length;
-  const progressPct    = items.length > 0 ? Math.round((completedCount / items.length) * 100) : 0;
-  const contextLabel   = roadmapContextLabel(roadmap);
+  const progressPct = items.length > 0 ? Math.round((completedCount / items.length) * 100) : 0;
+  const contextLabel = roadmapContextLabel(roadmap);
 
-  // ── Today's min date for the date picker ───────────────────────────────────
   const todayISO = new Date().toISOString().split('T')[0];
 
-  // ─────────────────────────────────────────────────────────────────────────
   if (loading) {
     return (
       <div className="flex items-center justify-center min-h-[40vh]">
         <div className="flex flex-col items-center gap-3">
-          <SpinnerIcon cls="h-8 w-8 text-indigo-600" />
-          <p className="text-xs font-semibold text-zinc-500">Loading your study plan…</p>
+          <RefreshCw className="h-8 w-8 text-[#7C5CFC] animate-spin" />
+          <p className="text-xs font-semibold text-[#94A3B8]">Loading your study plan…</p>
         </div>
       </div>
     );
   }
 
-  // ── MODE SELECTION / GENERATOR VIEW ─────────────────────────────────────────
+  // Generator View
   if (!roadmap || showGenerator) {
     return (
-      <div className="max-w-2xl mx-auto space-y-6 animate-fadeIn">
-        {/* Header */}
+      <div className="max-w-3xl mx-auto space-y-6 animate-fadeIn pb-12">
         <div className="flex items-start justify-between gap-4 flex-wrap">
           <div>
-            <h1 className="text-2xl sm:text-3xl font-bold text-zinc-900 tracking-tight">
+            <h1 className="text-2xl sm:text-3xl font-bold text-[#F8FAFC] tracking-tight">
               {roadmap ? 'Regenerate Roadmap' : 'Study Roadmap'}
             </h1>
-            <p className="text-zinc-500 text-xs sm:text-sm mt-1">
-              Choose how you want your plan to be generated.
+            <p className="text-[#94A3B8] text-xs sm:text-sm mt-1">
+              Choose how you want your AI plan to be generated.
             </p>
           </div>
           {roadmap && (
             <button
               onClick={() => { setShowGenerator(false); setError(''); }}
-              className="px-4 py-2 bg-white hover:bg-zinc-50 text-zinc-600 text-xs font-semibold rounded-xl border border-[#E5E5E0] hover:border-zinc-300 transition shadow-soft"
+              className="px-4 py-2 bg-[#141821] hover:bg-[#181D27] text-[#94A3B8] hover:text-[#F8FAFC] text-xs font-semibold rounded-xl border border-[#1F2633] transition shadow-soft flex items-center gap-1.5"
             >
-              ← Back to Plan
+              <ArrowLeft className="h-4 w-4" />
+              Back to Plan
             </button>
           )}
         </div>
 
-        {/* Error */}
         {error && (
-          <div className="flex items-start gap-2.5 px-4 py-3 rounded-xl bg-rose-50 border border-rose-200/80 text-rose-700 text-xs font-medium">
-            <AlertIcon />
+          <div className="flex items-start gap-2.5 px-4 py-3 rounded-xl bg-[#F87171]/10 border border-[#F87171]/20 text-[#F87171] text-xs font-medium">
+            <AlertCircle className="h-4 w-4 shrink-0 mt-0.5" />
             <span>{error}</span>
           </div>
         )}
 
-        {/* Mode tabs */}
-        <div className="bg-white border border-[#E5E5E0] rounded-2xl overflow-hidden shadow-card">
-          {/* Tab bar */}
-          <div className="flex border-b border-[#E5E5E0] divide-x divide-[#E5E5E0]">
-            {MODES.map((m) => (
-              <button
-                key={m.id}
-                id={`roadmap-mode-tab-${m.id}`}
-                onClick={() => { setActiveMode(m.id); setError(''); }}
-                className={`flex-1 flex flex-col items-center gap-1 py-3 px-2 text-[11px] font-semibold transition-colors focus:outline-none
-                  ${activeMode === m.id
-                    ? 'bg-indigo-50 text-indigo-700 border-b-2 border-indigo-600 -mb-px'
-                    : 'text-zinc-500 hover:bg-zinc-50 hover:text-zinc-700'}`}
-              >
-                <span className="text-base">{m.icon}</span>
-                <span className="leading-tight text-center">{m.label}</span>
-              </button>
-            ))}
+        <div className="bg-[#141821] border border-[#1F2633] rounded-2xl overflow-hidden shadow-card">
+          <div className="flex border-b border-[#1F2633] divide-x divide-[#1F2633]">
+            {MODES.map((m) => {
+              const Icon = m.icon;
+              return (
+                <button
+                  key={m.id}
+                  id={`roadmap-mode-tab-${m.id}`}
+                  onClick={() => { setActiveMode(m.id); setError(''); }}
+                  className={`flex-1 flex flex-col items-center gap-1.5 py-3.5 px-2 text-xs font-semibold transition-colors focus:outline-none
+                    ${activeMode === m.id
+                      ? 'bg-[#181D27] text-[#7C5CFC] border-b-2 border-[#7C5CFC] -mb-px'
+                      : 'text-[#64748B] hover:bg-[#181D27]/50 hover:text-[#94A3B8]'}`}
+                >
+                  <Icon className="h-4 w-4" />
+                  <span className="leading-tight text-center">{m.label}</span>
+                </button>
+              );
+            })}
           </div>
 
-          {/* Panel body */}
           <div className="p-6 space-y-5">
-            {/* Mode description */}
-            <p className="text-xs text-zinc-500 leading-relaxed">
+            <p className="text-xs text-[#94A3B8] leading-relaxed">
               {MODES.find((m) => m.id === activeMode)?.desc}
             </p>
 
-            {/* ── Company inputs ── */}
             {activeMode === 'company' && (
               <div className="space-y-4">
                 <div>
-                  <label htmlFor="roadmap-target-company" className="block text-xs font-semibold text-zinc-700 mb-1.5">
+                  <label htmlFor="roadmap-target-company" className="block text-xs font-semibold text-[#94A3B8] uppercase tracking-wider mb-1.5">
                     Target Company
                   </label>
                   <input
@@ -282,11 +259,11 @@ export default function Roadmap() {
                     value={targetCompany}
                     onChange={(e) => setTargetCompany(e.target.value)}
                     placeholder="e.g. Amazon, Google, TCS, Infosys…"
-                    className="w-full px-3.5 py-2.5 rounded-xl border border-[#E5E5E0] bg-white text-sm text-zinc-800 placeholder:text-zinc-400 focus:outline-none focus:ring-2 focus:ring-indigo-500/30 focus:border-indigo-400 transition"
+                    className="w-full px-3.5 py-2.5 rounded-xl border border-[#1F2633] bg-[#181D27] text-sm text-[#F8FAFC] placeholder:text-[#64748B] focus:outline-none focus:border-[#7C5CFC] transition"
                   />
                 </div>
                 <div>
-                  <label htmlFor="roadmap-test-date" className="block text-xs font-semibold text-zinc-700 mb-1.5">
+                  <label htmlFor="roadmap-test-date" className="block text-xs font-semibold text-[#94A3B8] uppercase tracking-wider mb-1.5">
                     Test / Interview Date
                   </label>
                   <input
@@ -295,10 +272,10 @@ export default function Roadmap() {
                     value={testDate}
                     min={todayISO}
                     onChange={(e) => setTestDate(e.target.value)}
-                    className="w-full px-3.5 py-2.5 rounded-xl border border-[#E5E5E0] bg-white text-sm text-zinc-800 focus:outline-none focus:ring-2 focus:ring-indigo-500/30 focus:border-indigo-400 transition"
+                    className="w-full px-3.5 py-2.5 rounded-xl border border-[#1F2633] bg-[#181D27] text-sm text-[#F8FAFC] focus:outline-none focus:border-[#7C5CFC] transition"
                   />
                   {testDate && daysUntil(testDate) > 0 && (
-                    <p className="mt-1.5 text-[11px] text-indigo-600 font-medium">
+                    <p className="mt-1.5 text-[11px] text-[#22D3EE] font-medium">
                       {daysUntil(testDate)} day{daysUntil(testDate) !== 1 ? 's' : ''} until your interview
                       {daysUntil(testDate) > 30 ? ' — plan will cover the first 30 days' : ''}
                     </p>
@@ -307,11 +284,10 @@ export default function Roadmap() {
               </div>
             )}
 
-            {/* ── Topic inputs ── */}
             {activeMode === 'topic' && (
               <div className="space-y-4">
                 <div>
-                  <label htmlFor="roadmap-custom-topic" className="block text-xs font-semibold text-zinc-700 mb-1.5">
+                  <label htmlFor="roadmap-custom-topic" className="block text-xs font-semibold text-[#94A3B8] uppercase tracking-wider mb-1.5">
                     Topic
                   </label>
                   <input
@@ -320,12 +296,12 @@ export default function Roadmap() {
                     value={customTopic}
                     onChange={(e) => setCustomTopic(e.target.value)}
                     placeholder="e.g. System Design, Dynamic Programming, DBMS…"
-                    className="w-full px-3.5 py-2.5 rounded-xl border border-[#E5E5E0] bg-white text-sm text-zinc-800 placeholder:text-zinc-400 focus:outline-none focus:ring-2 focus:ring-indigo-500/30 focus:border-indigo-400 transition"
+                    className="w-full px-3.5 py-2.5 rounded-xl border border-[#1F2633] bg-[#181D27] text-sm text-[#F8FAFC] placeholder:text-[#64748B] focus:outline-none focus:border-[#7C5CFC] transition"
                   />
                 </div>
                 <div>
-                  <label htmlFor="roadmap-topic-days" className="block text-xs font-semibold text-zinc-700 mb-1.5">
-                    Number of Days <span className="font-normal text-zinc-400">(optional — default 7, max 30)</span>
+                  <label htmlFor="roadmap-topic-days" className="block text-xs font-semibold text-[#94A3B8] uppercase tracking-wider mb-1.5">
+                    Number of Days <span className="font-normal text-[#64748B]">(optional — default 7, max 30)</span>
                   </label>
                   <input
                     id="roadmap-topic-days"
@@ -335,36 +311,37 @@ export default function Roadmap() {
                     value={topicDays}
                     onChange={(e) => setTopicDays(e.target.value)}
                     placeholder="7"
-                    className="w-32 px-3.5 py-2.5 rounded-xl border border-[#E5E5E0] bg-white text-sm text-zinc-800 placeholder:text-zinc-400 focus:outline-none focus:ring-2 focus:ring-indigo-500/30 focus:border-indigo-400 transition"
+                    className="w-32 px-3.5 py-2.5 rounded-xl border border-[#1F2633] bg-[#181D27] text-sm text-[#F8FAFC] placeholder:text-[#64748B] focus:outline-none focus:border-[#7C5CFC] transition"
                   />
                 </div>
               </div>
             )}
 
-            {/* Profile mode — no extra inputs needed */}
             {activeMode === 'profile' && (
-              <div className="flex items-start gap-3 p-3.5 rounded-xl bg-indigo-50 border border-indigo-100">
-                <span className="text-indigo-500 text-lg mt-0.5">ℹ️</span>
-                <p className="text-xs text-indigo-700 leading-relaxed">
+              <div className="flex items-start gap-3 p-3.5 rounded-xl bg-[#7C5CFC]/10 border border-[#7C5CFC]/20">
+                <Sparkles className="h-4 w-4 text-[#22D3EE] shrink-0 mt-0.5" />
+                <p className="text-xs text-[#9B7CFF] leading-relaxed">
                   Your roadmap will be built from your DSA weak areas, resume analysis, and GitHub profile data. Make sure your profile is up to date for the best results.
                 </p>
               </div>
             )}
 
-            {/* Submit */}
             <button
               id="roadmap-generate-submit"
               onClick={handleGenerate}
               disabled={actioning}
-              className="w-full py-3 bg-[#171717] hover:bg-black disabled:opacity-50 text-white text-xs sm:text-sm font-semibold rounded-xl shadow-sm transition flex items-center justify-center gap-2"
+              className="w-full py-3 bg-gradient-to-r from-[#7C5CFC] to-[#6344E2] hover:from-[#9B7CFF] disabled:opacity-50 text-white text-xs sm:text-sm font-bold rounded-xl shadow-glow-purple transition flex items-center justify-center gap-2"
             >
               {actioning ? (
                 <>
-                  <SpinnerIcon />
+                  <RefreshCw className="h-4 w-4 animate-spin" />
                   <span>Generating your plan…</span>
                 </>
               ) : (
-                <span>✨ Generate Roadmap</span>
+                <>
+                  <Sparkles className="h-4 w-4" />
+                  <span>Generate AI Roadmap</span>
+                </>
               )}
             </button>
           </div>
@@ -373,38 +350,39 @@ export default function Roadmap() {
     );
   }
 
-  // ── SAVED ROADMAPS VIEW ───────────────────────────────────────────────────
+  // Saved View
   if (showSaved) {
     return (
-      <div className="max-w-3xl mx-auto space-y-6 animate-fadeIn">
+      <div className="max-w-3xl mx-auto space-y-6 animate-fadeIn pb-12">
         <div className="flex items-start justify-between gap-4 flex-wrap">
           <div>
-            <h1 className="text-2xl sm:text-3xl font-bold text-zinc-900 tracking-tight">
+            <h1 className="text-2xl sm:text-3xl font-bold text-[#F8FAFC] tracking-tight">
               Saved Roadmaps
             </h1>
-            <p className="text-zinc-500 text-xs sm:text-sm mt-1">
+            <p className="text-[#94A3B8] text-xs sm:text-sm mt-1">
               Your previously saved study plans.
             </p>
           </div>
           <button
             onClick={() => { setShowSaved(false); setError(''); }}
-            className="px-4 py-2 bg-white hover:bg-zinc-50 text-zinc-600 text-xs font-semibold rounded-xl border border-[#E5E5E0] hover:border-zinc-300 transition shadow-soft"
+            className="px-4 py-2 bg-[#141821] hover:bg-[#181D27] text-[#94A3B8] hover:text-[#F8FAFC] text-xs font-semibold rounded-xl border border-[#1F2633] transition shadow-soft flex items-center gap-1.5"
           >
-            ← Back to Plan
+            <ArrowLeft className="h-4 w-4" />
+            Back to Plan
           </button>
         </div>
 
         {error && (
-          <div className="flex items-start gap-2.5 px-4 py-3 rounded-xl bg-rose-50 border border-rose-200/80 text-rose-700 text-xs font-medium">
-            <AlertIcon />
+          <div className="flex items-start gap-2.5 px-4 py-3 rounded-xl bg-[#F87171]/10 border border-[#F87171]/20 text-[#F87171] text-xs font-medium">
+            <AlertCircle className="h-4 w-4 shrink-0" />
             <span>{error}</span>
           </div>
         )}
 
         {savedRoadmaps.length === 0 ? (
-          <div className="bg-white border border-[#E5E5E0] rounded-2xl p-10 text-center shadow-soft">
-            <BookmarkIcon saved={false} cls="h-10 w-10 mx-auto text-zinc-300 mb-3" />
-            <p className="text-zinc-500 text-sm font-medium">You haven't saved any roadmaps yet.</p>
+          <div className="bg-[#141821] border border-[#1F2633] rounded-2xl p-10 text-center shadow-card">
+            <Bookmark className="h-10 w-10 mx-auto text-[#64748B] mb-3" />
+            <p className="text-[#94A3B8] text-sm font-medium">You haven't saved any roadmaps yet.</p>
           </div>
         ) : (
           <div className="grid gap-4">
@@ -415,15 +393,15 @@ export default function Roadmap() {
                   setRoadmap(r);
                   setShowSaved(false);
                 }}
-                className="bg-white border border-[#E5E5E0] rounded-2xl p-5 cursor-pointer hover:border-indigo-300 hover:shadow-card transition-all"
+                className="bg-[#141821] border border-[#1F2633] rounded-2xl p-5 cursor-pointer hover:border-[#7C5CFC] hover:shadow-card transition-all"
               >
                 <div className="flex justify-between items-start mb-2">
-                  <h3 className="font-bold text-zinc-900 text-base">{roadmapContextLabel(r)}</h3>
-                  <span className="text-xs font-semibold text-indigo-600 bg-indigo-50 px-2.5 py-1 rounded-md">
+                  <h3 className="font-bold text-[#F8FAFC] text-base">{roadmapContextLabel(r)}</h3>
+                  <span className="text-xs font-semibold text-[#7C5CFC] bg-[#7C5CFC]/10 px-2.5 py-1 rounded-md border border-[#7C5CFC]/20">
                     {r.items?.length || 0} Days
                   </span>
                 </div>
-                <div className="flex items-center gap-4 text-xs text-zinc-500">
+                <div className="flex items-center gap-4 text-xs text-[#94A3B8]">
                   <span>Saved on {new Date(r.savedAt).toLocaleDateString()}</span>
                   <span>•</span>
                   <span>{r.items?.filter(i => i.completed).length || 0} completed</span>
@@ -436,25 +414,24 @@ export default function Roadmap() {
     );
   }
 
-  // ── ROADMAP VIEW ─────────────────────────────────────────────────────────────
+  // Active Roadmap View
   return (
-    <div className="max-w-3xl mx-auto space-y-6 animate-fadeIn">
-      {/* ── Header ── */}
+    <div className="max-w-4xl mx-auto space-y-6 animate-fadeIn pb-12">
       <div className="flex items-start justify-between gap-4 flex-wrap">
         <div>
-          <h1 className="text-2xl sm:text-3xl font-bold text-zinc-900 tracking-tight">Study Roadmap</h1>
+          <h1 className="text-2xl sm:text-3xl font-bold text-[#F8FAFC] tracking-tight">Weekly Roadmap</h1>
           {contextLabel && (
-            <p className="text-xs sm:text-sm font-semibold text-indigo-600 mt-1">
+            <p className="text-xs sm:text-sm font-semibold text-[#7C5CFC] mt-1">
               {contextLabel}
             </p>
           )}
         </div>
-        <div className="flex gap-2">
+        <div className="flex gap-2 flex-wrap">
           <button
             onClick={() => { setShowSaved(true); setShowGenerator(false); fetchSavedRoadmaps(); }}
-            className="px-4 py-2 bg-white hover:bg-zinc-50 text-zinc-700 text-xs font-semibold rounded-xl border border-[#E5E5E0] hover:border-zinc-300 transition shadow-soft flex items-center gap-1.5"
+            className="px-4 py-2 bg-[#141821] hover:bg-[#181D27] text-[#94A3B8] hover:text-[#F8FAFC] text-xs font-semibold rounded-xl border border-[#1F2633] transition shadow-soft flex items-center gap-1.5"
           >
-            <BookmarkIcon saved={false} cls="h-4 w-4" />
+            <Bookmark className="h-4 w-4" />
             View Saved
           </button>
           <button
@@ -462,99 +439,87 @@ export default function Roadmap() {
             onClick={handleToggleSave}
             className={`px-4 py-2 flex items-center gap-1.5 text-xs font-semibold rounded-xl border transition shadow-soft
               ${roadmap.isSaved 
-                ? 'bg-indigo-50 border-indigo-200 text-indigo-700 hover:bg-indigo-100' 
-                : 'bg-white hover:bg-zinc-50 text-zinc-700 border-[#E5E5E0] hover:border-zinc-300'}`}
+                ? 'bg-[#7C5CFC]/10 border-[#7C5CFC]/30 text-[#7C5CFC]' 
+                : 'bg-[#141821] hover:bg-[#181D27] text-[#94A3B8] border-[#1F2633]'}`}
           >
-            <BookmarkIcon saved={roadmap.isSaved} cls="h-4 w-4" />
+            <Bookmark className={`h-4 w-4 ${roadmap.isSaved ? 'fill-[#7C5CFC]' : ''}`} />
             {roadmap.isSaved ? 'Saved' : 'Save Plan'}
           </button>
           <button
             id="roadmap-regenerate-btn"
             onClick={() => { setShowGenerator(true); setError(''); setMeta(null); setShowSaved(false); }}
-            className="px-4 py-2 bg-white hover:bg-zinc-50 text-zinc-700 text-xs font-semibold rounded-xl border border-[#E5E5E0] hover:border-zinc-300 transition shadow-soft"
+            className="px-4 py-2 bg-gradient-to-r from-[#7C5CFC] to-[#6344E2] hover:from-[#9B7CFF] text-white text-xs font-bold rounded-xl transition shadow-glow-purple flex items-center gap-1.5"
           >
-            ↺ Regenerate Plan
+            <RefreshCw className="h-3.5 w-3.5" />
+            Regenerate Plan
           </button>
         </div>
       </div>
 
-      {/* ── Error Banner ── */}
       {error && (
-        <div className="flex items-start gap-2.5 px-4 py-3 rounded-xl bg-rose-50 border border-rose-200/80 text-rose-700 text-xs font-medium">
-          <AlertIcon />
+        <div className="flex items-start gap-2.5 px-4 py-3 rounded-xl bg-[#F87171]/10 border border-[#F87171]/20 text-[#F87171] text-xs font-medium">
+          <AlertCircle className="h-4 w-4 shrink-0" />
           <span>{error}</span>
         </div>
       )}
 
-      {/* ── Truncation / meta note ── */}
       {meta?.truncationNote && (
-        <div className="flex items-start gap-2.5 px-4 py-3 rounded-xl bg-amber-50 border border-amber-200/80 text-amber-700 text-xs font-medium">
+        <div className="flex items-start gap-2.5 px-4 py-3 rounded-xl bg-[#FBBF24]/10 border border-[#FBBF24]/20 text-[#FBBF24] text-xs font-medium">
           <span className="shrink-0 mt-0.5">⚡</span>
           <span>{meta.truncationNote}</span>
         </div>
       )}
 
-      {/* ── Progress Card ── */}
-      <div className="bg-white border border-[#E5E5E0] rounded-2xl p-6 flex items-center justify-between gap-5 shadow-soft">
+      <div className="bg-[#141821] border border-[#1F2633] rounded-2xl p-6 flex items-center justify-between gap-5 shadow-card">
         <div className="flex-1 space-y-1.5">
-          <p className="text-xs font-bold uppercase tracking-wider text-zinc-400">Goal Progress</p>
+          <p className="text-xs font-bold uppercase tracking-wider text-[#64748B]">Goal Progress</p>
           <div className="flex items-baseline gap-1.5">
-            <span className="text-2xl sm:text-3xl font-extrabold text-zinc-900 tracking-tight">{completedCount}</span>
-            <span className="text-xs font-medium text-zinc-500">/ {items.length} day{items.length !== 1 ? 's' : ''} completed</span>
+            <span className="text-2xl sm:text-3xl font-extrabold text-[#F8FAFC] tracking-tight">{completedCount}</span>
+            <span className="text-xs font-medium text-[#94A3B8]">/ {items.length} day{items.length !== 1 ? 's' : ''} completed</span>
           </div>
-          <div className="h-2 w-full rounded-full bg-zinc-100 overflow-hidden mt-1">
+          <div className="h-2 w-full rounded-full bg-[#181D27] overflow-hidden mt-1">
             <div
-              className="h-full rounded-full bg-indigo-600 transition-all duration-500"
+              className="h-full rounded-full bg-gradient-to-r from-[#7C5CFC] to-[#22D3EE] transition-all duration-500"
               style={{ width: `${progressPct}%` }}
             />
           </div>
         </div>
-        <div className="shrink-0 flex items-center justify-center h-16 w-16 rounded-2xl border border-indigo-100 bg-indigo-50/70 shadow-sm">
-          <span className="text-base font-extrabold text-indigo-700">{progressPct}%</span>
+        <div className="shrink-0 flex items-center justify-center h-16 w-16 rounded-2xl border border-[#7C5CFC]/20 bg-[#7C5CFC]/10 shadow-glow-purple">
+          <span className="text-base font-extrabold text-[#22D3EE]">{progressPct}%</span>
         </div>
       </div>
 
-      {/* ── Day-by-Day List ── */}
       <div className="space-y-3">
         {items.map((item) => (
           <div
             key={item.day}
             onClick={() => handleToggle(item.day)}
-            className={`group flex items-start gap-4 rounded-2xl border p-5 cursor-pointer transition-all duration-150 select-none shadow-soft
+            className={`group flex items-start gap-4 rounded-2xl border p-5 cursor-pointer transition-all duration-150 select-none shadow-card
               ${item.completed
-                ? 'bg-zinc-50/80 border-zinc-200/80 opacity-70'
-                : 'bg-white border-[#E5E5E0] hover:border-zinc-300 hover:shadow-card'}`}
+                ? 'bg-[#181D27]/50 border-[#1F2633] opacity-60'
+                : 'bg-[#141821] border-[#1F2633] hover:border-[#2E384D] hover:shadow-hover'}`}
           >
-            {/* Checkbox */}
             <div
               className={`mt-0.5 shrink-0 flex items-center justify-center w-5 h-5 rounded-lg border transition-colors
                 ${item.completed
-                  ? 'bg-emerald-600 border-emerald-600 text-white shadow-sm'
-                  : 'border-zinc-300 group-hover:border-zinc-400 bg-white'}`}
+                  ? 'bg-[#34D399] border-[#34D399] text-[#090B10]'
+                  : 'border-[#1F2633] group-hover:border-[#7C5CFC] bg-[#181D27]'}`}
             >
-              {item.completed && (
-                <svg xmlns="http://www.w3.org/2000/svg" className="h-3.5 w-3.5" viewBox="0 0 20 20" fill="currentColor">
-                  <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
-                </svg>
-              )}
+              {item.completed && <CheckCircle2 className="h-3.5 w-3.5 stroke-[3]" />}
             </div>
 
-            {/* Day Details */}
             <div className="flex-1 min-w-0 space-y-1">
               <div className="flex items-center gap-2 flex-wrap">
-                <span className="text-xs font-bold text-indigo-600 group-hover:text-indigo-700">
+                <span className="text-xs font-bold text-[#7C5CFC] group-hover:text-[#9B7CFF]">
                   {item.day}
                 </span>
-                <span className="text-[10px] font-bold uppercase px-2 py-0.5 rounded-md bg-zinc-100 border border-zinc-200/70 text-zinc-600">
+                <span className="text-[10px] font-bold uppercase px-2 py-0.5 rounded-md bg-[#181D27] border border-[#1F2633] text-[#94A3B8]">
                   {item.focusArea}
                 </span>
-                {actioning && (
-                  <SpinnerIcon cls="h-3 w-3 text-zinc-400" />
-                )}
               </div>
               <p
-                className={`text-xs sm:text-sm font-medium text-zinc-800 leading-relaxed transition-all
-                  ${item.completed ? 'line-through text-zinc-400' : ''}`}
+                className={`text-xs sm:text-sm font-medium text-[#F8FAFC] leading-relaxed transition-all
+                  ${item.completed ? 'line-through text-[#64748B]' : ''}`}
               >
                 {item.task}
               </p>
@@ -563,9 +528,8 @@ export default function Roadmap() {
         ))}
       </div>
 
-      {/* ── Timeframe footer ── */}
       {roadmap.weekStartDate && (
-        <p className="text-[11px] text-zinc-400 text-center pb-2">
+        <p className="text-[11px] text-[#64748B] text-center pb-2">
           Plan generated on {new Date(roadmap.weekStartDate).toLocaleDateString()}
           {roadmap.weekEndDate && ` · active until ${new Date(roadmap.weekEndDate).toLocaleDateString()}`}
         </p>
@@ -573,4 +537,3 @@ export default function Roadmap() {
     </div>
   );
 }
-

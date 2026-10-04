@@ -1,12 +1,14 @@
 import { useState, useEffect, useRef } from 'react';
+import { User, GraduationCap, Target, Code, Building, Clock, CheckCircle2, AlertCircle, Save, RefreshCw, X } from 'lucide-react';
 import { getProfile, updateProfile } from '../services/authService';
 
-// ── Small reusable sub-components ─────────────────────────────────────────────
-
-function SectionCard({ title, children }) {
+function SectionCard({ title, children, icon: Icon }) {
   return (
-    <div className="bg-white border border-[#E5E5E0] rounded-2xl p-6 sm:p-7 space-y-5 shadow-soft">
-      <h2 className="text-sm font-bold text-zinc-900 uppercase tracking-wider">{title}</h2>
+    <div className="bg-[#141821] border border-[#1F2633] rounded-2xl p-6 sm:p-7 space-y-5 shadow-card">
+      <h2 className="text-sm font-bold text-[#F8FAFC] uppercase tracking-wider flex items-center gap-2">
+        {Icon && <Icon className="h-4 w-4 text-[#7C5CFC]" />}
+        <span>{title}</span>
+      </h2>
       {children}
     </div>
   );
@@ -15,16 +17,15 @@ function SectionCard({ title, children }) {
 function Field({ label, children }) {
   return (
     <div className="space-y-1.5">
-      <label className="block text-xs font-bold uppercase tracking-wider text-zinc-700">{label}</label>
+      <label className="block text-xs font-bold uppercase tracking-wider text-[#94A3B8]">{label}</label>
       {children}
     </div>
   );
 }
 
 const inputCls =
-  'w-full px-4 py-2.5 rounded-xl bg-white border border-[#E5E5E0] text-zinc-900 placeholder:text-zinc-400 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-600 transition text-sm shadow-soft';
+  'w-full px-4 py-2.5 rounded-xl bg-[#181D27] border border-[#1F2633] text-[#F8FAFC] placeholder:text-[#64748B] focus:outline-none focus:border-[#7C5CFC] transition text-sm shadow-soft';
 
-// ── TagInput: renders a tag list with add/remove ──────────────────────────────
 function TagInput({ tags, onChange, placeholder }) {
   const [draft, setDraft] = useState('');
   const inputRef = useRef(null);
@@ -53,22 +54,22 @@ function TagInput({ tags, onChange, placeholder }) {
 
   return (
     <div
-      className="flex flex-wrap gap-2 p-2.5 rounded-xl bg-white border border-[#E5E5E0] focus-within:ring-2 focus-within:ring-indigo-500/20 focus-within:border-indigo-600 cursor-text min-h-[46px] shadow-soft transition"
+      className="flex flex-wrap gap-2 p-2.5 rounded-xl bg-[#181D27] border border-[#1F2633] focus-within:border-[#7C5CFC] cursor-text min-h-[46px] shadow-soft transition"
       onClick={() => inputRef.current?.focus()}
     >
       {tags.map((tag) => (
         <span
           key={tag}
-          className="flex items-center gap-1.5 px-3 py-1 rounded-lg bg-indigo-50 border border-indigo-100 text-indigo-700 text-xs font-semibold shadow-sm"
+          className="flex items-center gap-1.5 px-3 py-1 rounded-lg bg-[#7C5CFC]/10 border border-[#7C5CFC]/20 text-[#9B7CFF] text-xs font-semibold shadow-sm"
         >
           {tag}
           <button
             type="button"
             onClick={() => removeTag(tag)}
-            className="text-indigo-400 hover:text-rose-600 transition-colors leading-none ml-0.5"
+            className="text-[#94A3B8] hover:text-[#F87171] transition-colors leading-none ml-0.5"
             aria-label={`Remove ${tag}`}
           >
-            ×
+            <X className="h-3 w-3" />
           </button>
         </span>
       ))}
@@ -79,13 +80,12 @@ function TagInput({ tags, onChange, placeholder }) {
         onKeyDown={handleKeyDown}
         onBlur={addTag}
         placeholder={tags.length === 0 ? placeholder : ''}
-        className="flex-1 min-w-[130px] bg-transparent text-sm text-zinc-900 placeholder:text-zinc-400 outline-none"
+        className="flex-1 min-w-[130px] bg-transparent text-sm text-[#F8FAFC] placeholder:text-[#64748B] outline-none"
       />
     </div>
   );
 }
 
-// ── Main Profile page ─────────────────────────────────────────────────────────
 export default function Profile() {
   const [form, setForm] = useState({
     name: '',
@@ -101,7 +101,6 @@ export default function Profile() {
   const [success, setSuccess]   = useState('');
   const [error, setError]       = useState('');
 
-  // ── Load profile on mount ──────────────────────────────────────────────────
   useEffect(() => {
     (async () => {
       try {
@@ -135,7 +134,6 @@ export default function Profile() {
     setError('');
   };
 
-  // ── Submit ─────────────────────────────────────────────────────────────────
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (!form.name.trim()) {
@@ -153,7 +151,6 @@ export default function Profile() {
         targetCompanies:     form.targetCompanies,
         availableStudyHours: form.availableStudyHours === '' ? 0 : Number(form.availableStudyHours),
       });
-      // Keep localStorage in sync
       localStorage.setItem('user', JSON.stringify(user));
       setSuccess('Profile saved successfully!');
     } catch (err) {
@@ -163,43 +160,38 @@ export default function Profile() {
     }
   };
 
-  // ── Render ─────────────────────────────────────────────────────────────────
   if (loading) {
     return (
-      <div className="flex items-center justify-center h-64">
-        <div className="w-8 h-8 border-4 border-indigo-600 border-t-transparent rounded-full animate-spin" />
+      <div className="flex items-center justify-center min-h-[40vh]">
+        <RefreshCw className="h-8 w-8 text-[#7C5CFC] animate-spin" />
       </div>
     );
   }
 
   return (
-    <div className="max-w-2xl mx-auto space-y-6 animate-fadeIn">
-      {/* Page header */}
+    <div className="max-w-3xl mx-auto space-y-6 animate-fadeIn pb-12">
       <div>
-        <h1 className="text-2xl sm:text-3xl font-bold text-zinc-900 tracking-tight">Profile & Career Goals</h1>
-        <p className="text-zinc-500 text-xs sm:text-sm mt-1">
+        <h1 className="text-2xl sm:text-3xl font-bold text-[#F8FAFC] tracking-tight">Profile & Career Goals</h1>
+        <p className="text-[#94A3B8] text-xs sm:text-sm mt-1">
           Keep your profile and target companies up to date to personalize your AI roadmap and mock interviews.
         </p>
       </div>
 
-      {/* Feedback banners */}
       {error && (
-        <div className="px-4 py-3 rounded-xl bg-rose-50 border border-rose-200/80 text-rose-700 text-xs font-medium">
-          {error}
+        <div className="px-4 py-3 rounded-xl bg-[#F87171]/10 border border-[#F87171]/20 text-[#F87171] text-xs font-medium flex items-center gap-2">
+          <AlertCircle className="h-4 w-4 shrink-0" />
+          <span>{error}</span>
         </div>
       )}
       {success && (
-        <div className="px-4 py-3 rounded-xl bg-emerald-50 border border-emerald-200/80 text-emerald-800 text-xs font-semibold flex items-center gap-2">
-          <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 text-emerald-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-          </svg>
+        <div className="px-4 py-3 rounded-xl bg-[#34D399]/10 border border-[#34D399]/20 text-[#34D399] text-xs font-semibold flex items-center gap-2">
+          <CheckCircle2 className="h-4 w-4 shrink-0" />
           <span>{success}</span>
         </div>
       )}
 
       <form onSubmit={handleSubmit} className="space-y-5">
-        {/* Basic info */}
-        <SectionCard title="Basic Information">
+        <SectionCard title="Basic Information" icon={User}>
           <Field label="Full name">
             <input
               name="name"
@@ -230,8 +222,7 @@ export default function Profile() {
           </Field>
         </SectionCard>
 
-        {/* Skills */}
-        <SectionCard title="Skill Keywords">
+        <SectionCard title="Skill Keywords" icon={Code}>
           <Field label="Skills (press Enter or comma to add)">
             <TagInput
               tags={form.skills}
@@ -241,8 +232,7 @@ export default function Profile() {
           </Field>
         </SectionCard>
 
-        {/* Target companies */}
-        <SectionCard title="Target Companies & Availability">
+        <SectionCard title="Target Companies & Availability" icon={Building}>
           <Field label="Dream Companies (press Enter or comma to add)">
             <TagInput
               tags={form.targetCompanies}
@@ -262,30 +252,26 @@ export default function Profile() {
                 placeholder="e.g. 15"
                 className={`${inputCls} pr-20`}
               />
-              <span className="absolute right-4 top-1/2 -translate-y-1/2 text-zinc-400 text-xs font-semibold select-none pointer-events-none">
+              <span className="absolute right-4 top-1/2 -translate-y-1/2 text-[#64748B] text-xs font-semibold select-none pointer-events-none">
                 hrs / week
               </span>
             </div>
           </Field>
         </SectionCard>
 
-        {/* Save */}
         <div className="flex justify-end pt-2">
           <button
             type="submit"
             disabled={saving}
-            className="px-7 py-3 bg-[#171717] hover:bg-black disabled:opacity-60 disabled:cursor-not-allowed text-white text-xs sm:text-sm font-semibold rounded-xl transition duration-150 shadow-sm flex items-center justify-center gap-2"
+            className="px-7 py-3 bg-gradient-to-r from-[#7C5CFC] to-[#6344E2] hover:from-[#9B7CFF] disabled:opacity-60 disabled:cursor-not-allowed text-white text-xs sm:text-sm font-bold rounded-xl transition duration-150 shadow-glow-purple flex items-center justify-center gap-2"
           >
             {saving ? (
-              <>
-                <svg className="animate-spin h-4 w-4 text-white" fill="none" viewBox="0 0 24 24">
-                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/>
-                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z"/>
-                </svg>
-                <span>Saving profile…</span>
-              </>
+              <span>Saving profile…</span>
             ) : (
-              'Save Profile'
+              <>
+                <Save className="h-4 w-4" />
+                <span>Save Profile</span>
+              </>
             )}
           </button>
         </div>

@@ -11,21 +11,44 @@ export default {
         mono: ['"JetBrains Mono"', 'ui-monospace', 'SFMono-Regular', 'Menlo', 'monospace'],
       },
       colors: {
-        background: '#F7F7F5',
-        card: '#FFFFFF',
-        foreground: '#171717',
-        subtle: '#E5E5E0',
-        muted: '#737373',
+        // Theme Colors
+        background: '#090B10',
+        sidebar: '#0F1219',
+        card: '#141821',
+        elevated: '#181D27',
+        border: '#1F2633',
+        'border-hover': '#2E384D',
+        
+        // Accents
+        primary: {
+          DEFAULT: '#7C5CFC',
+          hover: '#9B7CFF',
+          dark: '#6344E2',
+        },
+        ai: {
+          DEFAULT: '#22D3EE',
+          hover: '#38BDF8',
+        },
+        success: '#34D399',
+        warning: '#FBBF24',
+        error: '#F87171',
+
+        // Typography
+        main: '#F8FAFC',
+        secondary: '#94A3B8',
+        muted: '#64748B',
       },
       boxShadow: {
-        'soft': '0 1px 3px 0 rgba(0, 0, 0, 0.04), 0 1px 2px -1px rgba(0, 0, 0, 0.04)',
-        'card': '0 2px 8px -2px rgba(0, 0, 0, 0.05), 0 1px 4px -1px rgba(0, 0, 0, 0.03)',
-        'hover': '0 10px 25px -4px rgba(0, 0, 0, 0.06), 0 4px 10px -2px rgba(0, 0, 0, 0.03)',
-        'pop': '0 20px 30px -10px rgba(0, 0, 0, 0.08), 0 8px 12px -4px rgba(0, 0, 0, 0.03)',
+        'soft': '0 2px 10px 0 rgba(0, 0, 0, 0.4)',
+        'card': '0 4px 20px -2px rgba(0, 0, 0, 0.5)',
+        'hover': '0 8px 30px -4px rgba(124, 92, 252, 0.15), 0 4px 12px -2px rgba(0, 0, 0, 0.4)',
+        'glow-purple': '0 0 25px -5px rgba(124, 92, 252, 0.35)',
+        'glow-cyan': '0 0 25px -5px rgba(34, 211, 238, 0.35)',
       },
     },
   },
   plugins: [],
 }
+
 
 
